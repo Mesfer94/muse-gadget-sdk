@@ -14,17 +14,18 @@
 # limitations under the License.
 
 # Regenerates the Arabic fonts in components/muse/fonts/ from Noto Sans Arabic
-# (SIL Open Font License 1.1) with LVGL's lv_font_conv.
+# and Noto Sans (SIL Open Font License 1.1) with LVGL's lv_font_conv.
 #
-# Usage: gen_arabic_font.sh [NotoSansArabic-Regular.ttf]
+# Usage: gen_arabic_font.sh [NotoSansArabic-Regular.ttf NotoSans-Regular.ttf]
 #
-# Without a path it downloads the font from the Noto project. Needs Node.js
+# Without paths it downloads the fonts from the Noto project. Needs Node.js
 # for npx (lv_font_conv is fetched on first use).
 #
-# The fonts hold Arabic only. muse_i18n.c puts each one behind the Latin font
-# it pairs with (as that font's fallback), so the UI's metrics stay the same
-# and Latin text, digits and LVGL's symbols still come from Montserrat and
-# unscii.
+# The 12 and 16 px fonts also hold ASCII from Noto Sans, Noto Sans Arabic's
+# Latin sibling: in Arabic, muse_i18n.c puts them in front of unscii on Muse's
+# face, so a reply's English words and numbers are drawn in the same style as
+# its Arabic. The 20 and 28 px fonts hold Arabic only and go behind Montserrat,
+# which already draws Latin in a matching sans; the settings stay as they are.
 #
 # Only basic Arabic goes in, to keep them small: the 28 letters with hamza
 # forms, taa marbuta and alef maksura, tatweel, Arabic punctuation and both
@@ -43,14 +44,18 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 OUT=components/muse/fonts
-URL=https://github.com/notofonts/notofonts.github.io/raw/main/fonts/NotoSansArabic/unhinted/ttf/NotoSansArabic-Regular.ttf
+NOTO=https://github.com/notofonts/notofonts.github.io/raw/main/fonts
 
 TTF=${1:-}
-if [[ -z $TTF ]]; then
-    TTF=$(mktemp -t NotoSansArabic-Regular.XXXXXX)
-    trap 'rm -f "$TTF"' EXIT
-    echo "Downloading Noto Sans Arabic" >&2
-    curl -fsSL -o "$TTF" "$URL"
+LATIN_TTF=${2:-}
+if [[ -z $TTF || -z $LATIN_TTF ]]; then
+    TMP=$(mktemp -d)
+    trap 'rm -rf "$TMP"' EXIT
+    TTF=$TMP/NotoSansArabic-Regular.ttf
+    LATIN_TTF=$TMP/NotoSans-Regular.ttf
+    echo "Downloading Noto Sans Arabic and Noto Sans" >&2
+    curl -fsSL -o "$TTF" "$NOTO/NotoSansArabic/unhinted/ttf/NotoSansArabic-Regular.ttf"
+    curl -fsSL -o "$LATIN_TTF" "$NOTO/NotoSans/unhinted/ttf/NotoSans-Regular.ttf"
 fi
 
 RANGES=(
@@ -64,15 +69,20 @@ RANGES=(
 )
 RANGE_ARG=$(IFS=,; echo "${RANGES[*]}")
 
-# Sizes match the UI's fonts: 12 under unscii 8 and Montserrat 12, 16 under
+# Sizes match the UI's fonts: 12 for unscii 8 and Montserrat 12, 16 for
 # unscii 16 and Montserrat 14 and 16, then 20 and 28.
 mkdir -p "$OUT"
 for size in 12 16 20 28; do
     name=muse_font_ar_$size
-    npx --yes lv_font_conv@1.5.3 --font "$TTF" -r "$RANGE_ARG" \
+    latin=()
+    if [[ $size == 12 || $size == 16 ]]; then
+        latin=(--font "$LATIN_TTF" -r 0x20-0x7E)
+    fi
+    npx --yes lv_font_conv@1.5.3 --font "$TTF" -r "$RANGE_ARG" "${latin[@]}" \
         --size "$size" --bpp 4 --no-compress --no-kerning --format lvgl \
         --lv-include lvgl.h --lv-font-name "$name" -o "$OUT/$name.c"
-    # The header records the options; keep the font's path out of it.
-    sed -i.bak "s|--font [^ ]*|--font $(basename "$TTF")|" "$OUT/$name.c" && rm -f "$OUT/$name.c.bak"
+    # The header records the options; keep the fonts' paths out of it.
+    sed -i.bak -e "s|--font $TTF|--font $(basename "$TTF")|" -e "s|--font $LATIN_TTF|--font $(basename "$LATIN_TTF")|" \
+        "$OUT/$name.c" && rm -f "$OUT/$name.c.bak"
     echo "$OUT/$name.c" >&2
 done

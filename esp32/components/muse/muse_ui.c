@@ -667,7 +667,8 @@ static void build_answer(lv_obj_t *face, int ring_in)
         spk_x = -(int)sqrtf((float)(d * d - spk_y * spk_y));
     }
     const lv_font_t *font = muse_font(&lv_font_unscii_16);   /* taller lines with Arabic */
-    int cw = lv_font_get_glyph_width(font, 'M', ' ');
+    /* A page's columns are unscii's cells, as muse_chat_text.c counts them. */
+    int cw = lv_font_get_glyph_width(&lv_font_unscii_16, 'M', ' ');
     int pitch = lv_font_get_line_height(font) + CAPTION_LINE_SPACE;
 
     answer_layout_t *l = &s_answers[ANSWER_HEARD];

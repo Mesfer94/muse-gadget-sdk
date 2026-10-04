@@ -344,19 +344,22 @@ const char *muse_tr(const char *en)
 }
 
 /*
- * Each UI font, copied with an Arabic font as its fallback. The UI's font
- * stays in front, so line heights and Latin text don't move; Arabic, which it
- * lacks, comes from behind it at about the same visual size.
+ * Each UI font paired with an Arabic one at about the same visual size. In
+ * front of Montserrat (settings) the Arabic font only fills in Arabic.
+ * unscii's pixel letters (Muse's face, its replies) would sit oddly beside
+ * smooth Arabic, so there the Arabic font, which has Noto Sans's ASCII too,
+ * goes in front, and unscii only fills in what it lacks.
  */
 static struct {
     const lv_font_t *ui, *arabic;
+    bool arabic_first;
     lv_font_t both;
 } s_fonts[] = {
 #if LV_FONT_UNSCII_8
-    { .ui = &lv_font_unscii_8, .arabic = &muse_font_ar_12 },
+    { .ui = &lv_font_unscii_8, .arabic = &muse_font_ar_12, .arabic_first = true },
 #endif
 #if LV_FONT_UNSCII_16
-    { .ui = &lv_font_unscii_16, .arabic = &muse_font_ar_16 },
+    { .ui = &lv_font_unscii_16, .arabic = &muse_font_ar_16, .arabic_first = true },
 #endif
 #if LV_FONT_MONTSERRAT_12
     { .ui = &lv_font_montserrat_12, .arabic = &muse_font_ar_12 },
@@ -387,8 +390,8 @@ const lv_font_t *muse_font(const lv_font_t *font)
                 const lv_font_t *ar = s_fonts[i].arabic;
                 int32_t above = LV_MAX(font->line_height - font->base_line, ar->line_height - ar->base_line);
                 int32_t below = LV_MAX(font->base_line, ar->base_line);
-                s_fonts[i].both = *font;
-                s_fonts[i].both.fallback = ar;
+                s_fonts[i].both = s_fonts[i].arabic_first ? *ar : *font;
+                s_fonts[i].both.fallback = s_fonts[i].arabic_first ? font : ar;
                 s_fonts[i].both.line_height = above + below;
                 s_fonts[i].both.base_line = below;
             }
