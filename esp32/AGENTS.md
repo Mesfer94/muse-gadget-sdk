@@ -352,8 +352,10 @@ The default avatar is in `avatar/`: its renderer (`muse_pixel.c`) and
 its animation (`jollybot.gif`, and `happy_anim.c/.h` made from it by
 `tools/gen_happy_anim.py`).
 
-Third-party code keeps its upstream license and header: `minimp3.h` (CC0) and
-`main/pixel_font.c` (BSD-2-Clause, Adafruit). Don't restyle them or replace
+Third-party code keeps its upstream license and header: `minimp3.h` (CC0),
+`main/pixel_font.c` (BSD-2-Clause, Adafruit) and the Noto Sans Arabic fonts in
+`components/muse/fonts/` (OFL-1.1; regenerate them with
+`tools/gen_arabic_font.sh`, never by hand). Don't restyle them or replace
 their headers with the Apache one; `components/minimp3/README.md` says how to
 update minimp3.
 

@@ -17,8 +17,9 @@ limitations under the License.
 # UI simulator
 
 This is a desktop preview of the Muse interface in a 412 x 412 SenseCAP
-Watcher window. It compiles the production `muse_ui.c`, state and text code,
-and the avatar renderer. SDL supplies the display, mouse input, and timing while
+Watcher window, or the M5Stack StopWatch's round 466 x 466 screen. It compiles
+the production `muse_ui.c`, settings pages, state and text code, and the
+avatar renderer. SDL supplies the display, mouse input, and timing while
 small host adapters stand in for ESP-IDF, FreeRTOS, Wi-Fi, Bluetooth, Link,
 settings, and power services.
 
@@ -129,8 +130,9 @@ For a quick manual smoke test:
 4. Press F5 for speaking mode and use `+` and `-` to animate the mouth.
 5. Press H and confirm that the avatar performs the happy animation.
 6. Press S to sleep, then click the dark window to wake it.
-7. Drag left across the window to open the settings placeholder and drag right
-   to return to the avatar. Settings controls are not implemented in the simulator.
+7. Drag left across the window to open settings and drag right to return to
+   the avatar. The pages work, against in-memory Wi-Fi, Bluetooth and battery
+   readings; nothing is saved.
 8. Press P and confirm that `muse-simulator.ppm` appears in the current
    directory, then press Esc to quit.
 
@@ -143,6 +145,23 @@ An included scenario can also initialize a visible interactive session:
 
 An interactive window requires a display session. Use `--headless` when
 running over SSH or in CI.
+
+## StopWatch and Arabic
+
+`--board stopwatch` previews the M5Stack StopWatch: a 466 x 466 screen masked
+to its circle, with its button names and hint positions. `--lang ar` shows the
+UI in Arabic, as firmware built with `CONFIG_MUSE_LANG_ARABIC` does (the
+StopWatch overlay turns it on). Without them the simulator is the Watcher in
+English, as before.
+
+```sh
+./esp32/simulator/build/muse_simulator --board stopwatch --lang ar \
+  --scenario esp32/simulator/tests/arabic/long.txt
+```
+
+The scenarios in `tests/arabic/` cover short, long and mixed Arabic, English
+and number replies, the face's captions and the settings pages; the automated
+tests render each one with both options.
 
 ## Scripted and headless runs
 
@@ -186,6 +205,11 @@ Supported scenario keys are:
 - `link`: `boot`, `unpaired`, `pairing`, `confirm`, `connecting`, `online`,
   `offline`, or `error`
 - `speaker`, `brightness`, and `advance` in milliseconds
+- `reply`: a reply's text, paged to the screen as the firmware pages it
+  (render a frame first with `advance`, so the page has its size)
+- `screen`: `face` or `settings`
+- `tap`: taps what holds the label with this text, in English or as shown
+- `scroll`: scrolls the open settings page down by this many pixels
 
 Invalid options and scenario values return a nonzero exit status and identify
 the bad line.

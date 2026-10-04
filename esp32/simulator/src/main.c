@@ -31,6 +31,8 @@
 #include "lvgl.h"
 #include "src/drivers/sdl/lv_sdl_window.h"
 
+#include "muse_chat_priv.h"
+#include "muse_i18n.h"
 #include "muse_state.h"
 #include "muse_ui.h"
 #include "sim_board.h"
@@ -58,6 +60,10 @@ static void usage(FILE *out, const char *argv0)
     fprintf(out,
             "Usage: %s [--headless] [--scenario FILE] [--run-ms N] "
             "[--screenshot FILE.ppm]\n"
+            "          [--board watcher|stopwatch] [--lang en|ar]\n"
+            "\n"
+            "--board stopwatch previews the M5Stack StopWatch: a 466 x 466\n"
+            "round screen, masked to a circle. --lang ar shows the UI in Arabic.\n"
             "\n"
             "Scenario lines are key=value. Supported keys:\n"
             "  face=boot|idle|listening|thinking|speaking|error|off|happy\n"
@@ -68,6 +74,9 @@ static void usage(FILE *out, const char *argv0)
             "  ble=off|advertising|connected         passkey=0..999999\n"
             "  paired=true|false  link=boot|unpaired|pairing|confirm|connecting|online|offline|error\n"
             "  speaker=true|false brightness=10..100 advance=MILLISECONDS\n"
+            "  reply=TEXT         the page of a reply, wrapped as the firmware does\n"
+            "  screen=face|settings                 tap=TEXT (a label's text)\n"
+            "  scroll=PIXELS      scrolls the settings page down\n"
             "\n"
             "Interactive keys: F1..F7 select face states, H is happy, Space is\n"
             "push-to-talk, +/- change level, [/] change progress, S sleeps,\n"
@@ -181,6 +190,87 @@ static bool parse_float(const char *text, float min, float max, float *out)
         return false;
     }
     *out = value;
+    return true;
+}
+
+/* Whether `obj` and everything holding it are showing. */
+static bool showing(lv_obj_t *obj)
+{
+    for (; obj; obj = lv_obj_get_parent(obj)) {
+        if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/* The first showing object under `obj` that `match` accepts, depth first. */
+static lv_obj_t *find(lv_obj_t *obj, bool (*match)(lv_obj_t *, const void *), const void *arg)
+{
+    if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+        return NULL;
+    }
+    if (match(obj, arg)) {
+        return obj;
+    }
+    for (uint32_t i = 0; i < lv_obj_get_child_count(obj); i++) {
+        lv_obj_t *found = find(lv_obj_get_child(obj, (int32_t)i), match, arg);
+        if (found) {
+            return found;
+        }
+    }
+    return NULL;
+}
+
+static bool is_tileview(lv_obj_t *obj, const void *arg)
+{
+    (void)arg;
+    return lv_obj_check_type(obj, &lv_tileview_class);
+}
+
+static bool is_label_with(lv_obj_t *obj, const void *text)
+{
+    return lv_obj_check_type(obj, &lv_label_class) && (muse_label_shows(obj, text) || muse_label_shows(obj, muse_tr(text)));
+}
+
+/* A settings page's list: the one thing that scrolls only up and down. */
+static bool is_page_list(lv_obj_t *obj, const void *arg)
+{
+    (void)arg;
+    return lv_obj_get_scroll_dir(obj) == LV_DIR_VER && showing(obj);
+}
+
+static bool show_screen(const char *value)
+{
+    lv_obj_t *tv = find(lv_screen_active(), is_tileview, NULL);
+    if (!tv || (strcmp(value, "face") && strcmp(value, "settings"))) {
+        return false;
+    }
+    lv_tileview_set_tile_by_index(tv, strcmp(value, "face") ? 1 : 0, 0, LV_ANIM_OFF);
+    return true;
+}
+
+/* Taps what holds the label reading `text` (or its translation). */
+static bool tap(const char *text)
+{
+    lv_obj_t *obj = find(lv_screen_active(), is_label_with, text);
+    while (obj && !lv_obj_has_flag(obj, LV_OBJ_FLAG_CLICKABLE)) {
+        obj = lv_obj_get_parent(obj);
+    }
+    if (!obj) {
+        return false;
+    }
+    lv_obj_send_event(obj, LV_EVENT_CLICKED, NULL);
+    return true;
+}
+
+static bool scroll_page(long px)
+{
+    lv_obj_t *list = find(lv_screen_active(), is_page_list, NULL);
+    if (!list) {
+        return false;
+    }
+    lv_obj_scroll_by(list, 0, -(int32_t)px, LV_ANIM_OFF);
     return true;
 }
 
@@ -300,6 +390,24 @@ static bool apply_setting(const char *key, const char *value, bool real_time)
     if (!strcmp(key, "caption")) {
         muse_state_set_caption("%s", value);
         return true;
+    }
+    if (!strcmp(key, "reply")) {
+        /* Its opening page, as muse_voice.c shows it while Muse speaks. */
+        char page[MUSE_CAPTION_MAX];
+        if (!muse_hatch_caption_at(value, 0, page, sizeof(page))) {
+            return false;
+        }
+        muse_state_set_caption("%s", page);
+        return true;
+    }
+    if (!strcmp(key, "screen")) {
+        return show_screen(value);
+    }
+    if (!strcmp(key, "tap")) {
+        return tap(value);
+    }
+    if (!strcmp(key, "scroll") && parse_long(value, 0, 10000, &number)) {
+        return scroll_page(number);
     }
     if (!strcmp(key, "level") && parse_float(value, 0.0f, 1.0f, &scalar)) {
         s_level = scalar;
@@ -480,6 +588,18 @@ int main(int argc, char **argv)
             scenario = argv[++i];
         } else if (!strcmp(argv[i], "--screenshot") && i + 1 < argc) {
             screenshot = argv[++i];
+        } else if (!strcmp(argv[i], "--board") && i + 1 < argc) {
+            if (!sim_board_select(argv[++i])) {
+                fprintf(stderr, "invalid --board value\n");
+                return 2;
+            }
+        } else if (!strcmp(argv[i], "--lang") && i + 1 < argc) {
+            const char *lang = argv[++i];
+            if (strcmp(lang, "en") && strcmp(lang, "ar")) {
+                fprintf(stderr, "invalid --lang value\n");
+                return 2;
+            }
+            muse_i18n_set_arabic(!strcmp(lang, "ar"));
         } else if (!strcmp(argv[i], "--run-ms") && i + 1 < argc) {
             long value;
             if (!parse_long(argv[++i], 0, 3600000, &value)) {

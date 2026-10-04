@@ -1,0 +1,7 @@
+# Typing a network's name: an Arabic title over a left-to-right field and keys.
+screen=settings
+advance=100
+tap=Wi-Fi
+advance=300
+tap=Other network...
+advance=300

@@ -29,6 +29,7 @@
 #include "muse_ble.h"
 #include "muse_board.h"
 #include "muse_chat.h"
+#include "muse_i18n.h"
 #include "muse_input.h"
 #include "muse_keypad.h"
 #include "muse_link.h"
@@ -58,6 +59,8 @@ typedef void (*text_done_cb_t)(const char *text);
 
 /* The screen size the text page is scaled to (see text_px). */
 static int s_text_scale = 466;
+/* The width of the pages' column, for lining up Arabic notes. */
+static int s_list_w = LIST_W;
 static lv_obj_t *s_tile;
 static lv_obj_t *s_current;
 static lv_obj_t *s_home, *s_wifi, *s_hatch, *s_ble, *s_sound, *s_sleep, *s_battery, *s_power, *s_text;
@@ -118,24 +121,46 @@ static lv_obj_t *s_text_back;
 /* ---------- building blocks ---------- */
 
 /* Network and phone names can have characters the fonts lack (muse_text.h). */
+#if CONFIG_MUSE_LANG_ARABIC
+#define SHOWN_MAX 512   /* a long note in Arabic, two bytes a letter */
+#else
 #define SHOWN_MAX 96
+#endif
+
+/* Marks the notes, which line up by their text (muse_text_align). */
+static const char NOTE_TAG;
+
+static void fit_note(lv_obj_t *l)
+{
+    if (lv_obj_get_user_data(l) == &NOTE_TAG) {
+        const char *text = lv_label_get_text(l);
+        lv_obj_set_style_text_align(l, muse_text_align(l, text, s_list_w, LV_TEXT_ALIGN_CENTER), 0);
+    }
+}
 
 static lv_obj_t *label(lv_obj_t *parent, const lv_font_t *font, uint32_t color, const char *text)
 {
     char shown[SHOWN_MAX];
     lv_obj_t *l = lv_label_create(parent);
-    lv_obj_set_style_text_font(l, font, 0);
+    lv_obj_set_style_text_font(l, muse_font(font), 0);
     lv_obj_set_style_text_color(l, lv_color_hex(color), 0);
-    lv_label_set_text(l, muse_text_showable(text, shown, sizeof(shown)));
+    if (muse_i18n_arabic()) {
+        /* The page is right to left; a label's own text goes the way it's written,
+         * so a network name in English still reads left to right. */
+        lv_obj_set_style_base_dir(l, LV_BASE_DIR_AUTO, 0);
+        lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_RIGHT, 0);
+    }
+    muse_label_set(l, muse_text_showable(muse_tr(text), shown, sizeof(shown)));
     return l;
 }
 
 static void set_text(lv_obj_t *l, const char *text)
 {
     char shown[SHOWN_MAX];
-    text = muse_text_showable(text, shown, sizeof(shown));
-    if (strcmp(lv_label_get_text(l), text) != 0) {
-        lv_label_set_text(l, text);
+    text = muse_text_showable(muse_tr(text), shown, sizeof(shown));
+    if (!muse_label_shows(l, text)) {
+        muse_label_set(l, text);
+        fit_note(l);
     }
 }
 
@@ -145,6 +170,8 @@ static lv_obj_t *note(lv_obj_t *list, const char *text)
     lv_obj_set_width(l, lv_pct(100));
     lv_label_set_long_mode(l, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_user_data(l, (void *)&NOTE_TAG);
+    fit_note(l);
     return l;
 }
 
@@ -185,7 +212,9 @@ static lv_obj_t *back_button(lv_obj_t *p)
     lv_obj_set_size(b, 56, 48);
     lv_obj_align(b, LV_ALIGN_TOP_MID, -112, 28);
     lv_obj_add_event_cb(b, on_back, LV_EVENT_CLICKED, NULL);
-    lv_obj_t *arrow = label(b, &lv_font_montserrat_20, COLOR_ACCENT, LV_SYMBOL_LEFT);
+    /* On a right-to-left page it's at the right, pointing that way. */
+    bool rtl = lv_obj_get_style_base_dir(p, LV_PART_MAIN) == LV_BASE_DIR_RTL;
+    lv_obj_t *arrow = label(b, &lv_font_montserrat_20, COLOR_ACCENT, rtl ? LV_SYMBOL_RIGHT : LV_SYMBOL_LEFT);
     lv_obj_center(arrow);
     return b;
 }
@@ -203,7 +232,7 @@ static lv_obj_t *page(lv_obj_t *tile, const char *title, bool back, lv_obj_t **l
     catch_swipes(p);
 
     lv_obj_t *t = label(p, compact ? &lv_font_montserrat_16 : &lv_font_unscii_16, COLOR_ACCENT, title);
-    lv_obj_set_style_text_letter_space(t, compact ? 0 : 2, 0);
+    lv_obj_set_style_text_letter_space(t, compact || muse_i18n_arabic() ? 0 : 2, 0);
     lv_obj_align(t, LV_ALIGN_TOP_MID, 0, compact ? (back ? 12 : 8) : 44);
 
     if (back) {
@@ -216,7 +245,8 @@ static lv_obj_t *page(lv_obj_t *tile, const char *title, bool back, lv_obj_t **l
 
     lv_obj_t *list = lv_obj_create(p);
     lv_obj_remove_style_all(list);
-    lv_obj_set_size(list, compact ? muse_board->width - 16 : LIST_W, muse_board->height - list_top);
+    s_list_w = compact ? muse_board->width - 16 : LIST_W;
+    lv_obj_set_size(list, s_list_w, muse_board->height - list_top);
     lv_obj_align(list, LV_ALIGN_TOP_MID, 0, list_top);
     lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(list, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -457,7 +487,7 @@ static void on_text_show(lv_event_t *e)
     (void)e;
     bool pw = !lv_textarea_get_password_mode(s_text_ta);
     lv_textarea_set_password_mode(s_text_ta, pw);
-    lv_label_set_text(lv_obj_get_child(s_text_show, 0), pw ? "Show" : "Hide");
+    muse_label_set(lv_obj_get_child(s_text_show, 0), muse_tr(pw ? "Show" : "Hide"));
 }
 
 /* Beside the keyboard's field, a button to show a password. */
@@ -467,7 +497,7 @@ static void fit_show_button(bool password)
     lv_obj_set_width(s_text_ta, password ? w - show_w - gap : w);
     lv_obj_align(s_text_ta, LV_ALIGN_TOP_MID, password ? -(show_w + gap) / 2 : 0, text_y(76));
     lv_obj_align(s_text_show, LV_ALIGN_TOP_MID, (w - show_w) / 2, text_y(76));
-    lv_label_set_text(lv_obj_get_child(s_text_show, 0), "Show");
+    muse_label_set(lv_obj_get_child(s_text_show, 0), muse_tr("Show"));
     if (password) {
         lv_obj_remove_flag(s_text_show, LV_OBJ_FLAG_HIDDEN);
     } else {
@@ -518,6 +548,9 @@ static void build_text_page(lv_obj_t *tile)
     lv_obj_set_size(s_text, lv_pct(100), lv_pct(100));
     lv_obj_remove_flag(s_text, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(s_text, LV_OBJ_FLAG_HIDDEN);
+    /* Typing stays left to right in Arabic too: the keys keep their order and
+     * passwords and network names read as typed. */
+    lv_obj_set_style_base_dir(s_text, LV_BASE_DIR_LTR, 0);
     catch_swipes(s_text);
     lv_obj_t *back = back_button(s_text);
 
@@ -534,7 +567,7 @@ static void build_text_page(lv_obj_t *tile)
     s_text_ta = lv_textarea_create(s_text);
     lv_textarea_set_one_line(s_text_ta, true);
     lv_obj_set_size(s_text_ta, text_px(300), h);
-    lv_obj_set_style_text_font(s_text_ta, font, 0);
+    lv_obj_set_style_text_font(s_text_ta, muse_font(font), 0);
     lv_obj_set_style_pad_ver(s_text_ta, pad > 0 ? pad : 0, 0);
     lv_obj_set_style_pad_hor(s_text_ta, 14, 0);
     lv_obj_set_style_bg_color(s_text_ta, lv_color_hex(COLOR_CARD), 0);
@@ -542,7 +575,7 @@ static void build_text_page(lv_obj_t *tile)
     lv_obj_set_style_border_color(s_text_ta, lv_color_hex(COLOR_ACCENT), 0);
     lv_obj_set_style_border_width(s_text_ta, border, 0);
     lv_obj_set_style_radius(s_text_ta, 14, 0);
-    lv_obj_set_style_text_font(s_text_ta, &lv_font_montserrat_16, LV_PART_TEXTAREA_PLACEHOLDER);
+    lv_obj_set_style_text_font(s_text_ta, muse_font(&lv_font_montserrat_16), LV_PART_TEXTAREA_PLACEHOLDER);
     lv_obj_set_style_text_color(s_text_ta, lv_color_hex(COLOR_DIM), LV_PART_TEXTAREA_PLACEHOLDER);
     lv_obj_add_state(s_text_ta, LV_STATE_FOCUSED);
     lv_obj_align(s_text_ta, LV_ALIGN_TOP_MID, 0, text_y(76));
@@ -585,7 +618,7 @@ static void open_text(const char *title, const char *initial, bool password, int
     lv_textarea_set_max_length(s_text_ta, max_len);
     lv_textarea_set_password_mode(s_text_ta, password);
     lv_textarea_set_text(s_text_ta, initial ? initial : "");
-    lv_textarea_set_placeholder_text(s_text_ta, hint ? hint : "");
+    lv_textarea_set_placeholder_text(s_text_ta, hint ? muse_text_joined(muse_tr(hint)) : "");
     if (s_text_kp) {
         muse_keypad_reset(s_text_kp, password);
     } else {
@@ -737,9 +770,10 @@ static bool rebuild_scan_list(void)
         row(s_wifi_list, NULL, s_aps[i].ssid, &v, on_wifi_ap, (void *)(intptr_t)i);
         bool saved = is_saved(s_aps[i].ssid);
         saved_seen |= saved;
-        char buf[24];
-        snprintf(buf, sizeof(buf), "%s%d dBm", saved ? "saved  " : (s_aps[i].secure ? "" : "open  "), s_aps[i].rssi);
-        lv_label_set_text(v, buf);
+        char buf[40];
+        snprintf(buf, sizeof(buf), "%s%d dBm", muse_tr(saved ? "saved  " : (s_aps[i].secure ? "" : "open  ")),
+                 s_aps[i].rssi);
+        muse_label_set(v, buf);
     }
     if (gen && !n) {
         note(s_wifi_list, "No networks found");
@@ -777,7 +811,7 @@ static void tick_wifi(void)
 {
     muse_wifi_status_t w;
     muse_wifi_status(&w);
-    char buf[128];
+    char buf[192];
     switch (w.state) {
     case MUSE_WIFI_OFF:
         strlcpy(buf, "Wi-Fi is off", sizeof(buf));
@@ -786,17 +820,17 @@ static void tick_wifi(void)
         strlcpy(buf, "No saved networks. Scan and pick one.", sizeof(buf));
         break;
     case MUSE_WIFI_CONNECTING:
-        snprintf(buf, sizeof(buf), "Joining %s\n%s", w.ssid, w.detail);
+        snprintf(buf, sizeof(buf), muse_tr("Joining %s\n%s"), w.ssid, w.detail);
         break;
     case MUSE_WIFI_CONNECTED:
-        snprintf(buf, sizeof(buf), "Connected to %s\n%s  -  %d dBm", w.ssid, w.ip, w.rssi);
+        snprintf(buf, sizeof(buf), muse_tr("Connected to %s\n%s  -  %d dBm"), w.ssid, w.ip, w.rssi);
         break;
     case MUSE_WIFI_NOT_NEARBY:
         strlcpy(buf, "No saved network nearby\nLooking again within a minute", sizeof(buf));
         break;
     case MUSE_WIFI_FAILED:
     default:
-        snprintf(buf, sizeof(buf), "Couldn't join %s\n%s", w.ssid, w.detail);
+        snprintf(buf, sizeof(buf), muse_tr("Couldn't join %s\n%s"), w.ssid, w.detail);
         break;
     }
     set_text(s_wifi_status, buf);
@@ -891,9 +925,9 @@ static void build_hatch_page(lv_obj_t *tile)
 
 static void tick_hatch(void)
 {
-    char link[64];
-    snprintf(link, sizeof(link), "Muse app: %s\n%s", muse_link_hatch_linked() ? "paired" : "not paired",
-             muse_link_state_name(muse_link_state()));
+    char link[128];
+    snprintf(link, sizeof(link), muse_tr("Muse app: %s\n%s"), muse_tr(muse_link_hatch_linked() ? "paired" : "not paired"),
+             muse_tr(muse_link_state_name(muse_link_state())));
     set_text(s_link_status, link);
     if (s_link_reset_armed_us && esp_timer_get_time() - s_link_reset_armed_us >= 5000000) {
         s_link_reset_armed_us = 0;
@@ -902,8 +936,8 @@ static void tick_hatch(void)
 
     muse_hatch_status_t h;
     muse_hatch_status(&h);
-    char buf[96];
-    snprintf(buf, sizeof(buf), "%s\n%s", muse_hatch_state_name(h.state), h.detail);
+    char buf[128];
+    snprintf(buf, sizeof(buf), "%s\n%s", muse_tr(muse_hatch_state_name(h.state)), h.detail);
     set_text(s_hatch_status, buf);
     lv_obj_set_style_text_color(s_hatch_status, lv_color_hex(h.state == MUSE_HATCH_REACHABLE ? COLOR_OK :
                                                              h.state == MUSE_HATCH_UNREACHABLE ? COLOR_WARN : COLOR_DIM), 0);
@@ -914,7 +948,7 @@ static void tick_hatch(void)
     set_text(s_hatch_host, host);
     set_text(s_hatch_vm, vm[0] ? vm : "Not set");
     size_t n = muse_settings_hatch_token_len();
-    snprintf(buf, sizeof(buf), n ? "Set (%u chars)" : "Not set", (unsigned)n);
+    snprintf(buf, sizeof(buf), muse_tr(n ? "Set (%u chars)" : "Not set"), (unsigned)n);
     set_text(s_hatch_token, buf);
 }
 
@@ -952,11 +986,11 @@ static void tick_ble(void)
         strlcpy(buf, "Off", sizeof(buf));
         break;
     case MUSE_BLE_ADVERTISING:
-        snprintf(buf, sizeof(buf), "Visible as %s", b.name);
+        snprintf(buf, sizeof(buf), muse_tr("Visible as %s"), b.name);
         break;
     case MUSE_BLE_CONNECTED:
     default:
-        snprintf(buf, sizeof(buf), "Phone connected\n%s", b.secure ? "Paired" : "Waiting for pairing");
+        snprintf(buf, sizeof(buf), muse_tr("Phone connected\n%s"), muse_tr(b.secure ? "Paired" : "Waiting for pairing"));
         break;
     }
     set_text(s_ble_status, buf);
@@ -971,8 +1005,8 @@ static void tick_ble(void)
 
 static void set_val(lv_obj_t *l, const char *fmt, int v)
 {
-    char buf[16];
-    snprintf(buf, sizeof(buf), fmt, v);
+    char buf[32];
+    snprintf(buf, sizeof(buf), muse_tr(fmt), v);
     set_text(l, buf);
 }
 
@@ -1153,18 +1187,18 @@ static void tick_battery(void)
     muse_battery_t b;
     muse_battery_read(&b);
     muse_power_t p = muse_state_power();
-    char buf[96], t[24];
+    char buf[128], t[24];
 
     int h = (int)(b.secs / 3600), m = (int)(b.secs / 60 % 60);
     if (h) {
-        snprintf(t, sizeof(t), "%d h %d min", h, m);
+        snprintf(t, sizeof(t), muse_tr("%d h %d min"), h, m);
     } else {
-        snprintf(t, sizeof(t), "%d min", m);
+        snprintf(t, sizeof(t), muse_tr("%d min"), m);
     }
     if (!b.started) {
         strlcpy(buf, p.battery_pct < 0 ? "No battery" : "Unplug USB to start measuring.", sizeof(buf));
     } else {
-        snprintf(buf, sizeof(buf), b.running ? "On battery for %s" : "Last run: %s on battery", t);
+        snprintf(buf, sizeof(buf), muse_tr(b.running ? "On battery for %s" : "Last run: %s on battery"), t);
     }
     set_text(s_batt_status, buf);
 
@@ -1185,10 +1219,10 @@ static void tick_battery(void)
     } else if (muse_battery_drain(&b, &rate10, &full_h)) {
         snprintf(buf, sizeof(buf), "%d%%, %d.%d%%/h", used, rate10 / 10, rate10 % 10);
         set_text(s_batt_drain, buf);
-        snprintf(buf, sizeof(buf), "lasts ~%d h", full_h);
+        snprintf(buf, sizeof(buf), muse_tr("lasts ~%d h"), full_h);
         set_text(s_batt_full, buf);
     } else {
-        snprintf(buf, sizeof(buf), "%d%% so far", used > 0 ? used : 0);
+        snprintf(buf, sizeof(buf), muse_tr("%d%% so far"), used > 0 ? used : 0);
         set_text(s_batt_drain, buf);
         set_text(s_batt_full, "measuring");
     }
@@ -1205,7 +1239,7 @@ static void tick_battery(void)
     }
     buf[0] = '\0';
     if (b.started && b.awake[0]) {
-        snprintf(buf, sizeof(buf), "Also kept awake by: %s", b.awake);
+        snprintf(buf, sizeof(buf), muse_tr("Also kept awake by: %s"), b.awake);
     }
     set_text(s_batt_awake, buf);
 }
@@ -1227,9 +1261,10 @@ static void build_power_page(lv_obj_t *tile)
     note(list, "Power Muse off completely?");
     button(list, LV_SYMBOL_POWER "  Power off", COLOR_DANGER, on_power_off, NULL);
     button(list, "Cancel", COLOR_TEXT, on_back, NULL);
-    char text[128];
-    snprintf(text, sizeof(text), "Press the %s button to turn it back on. To just turn the screen off, press the %s button.",
-             muse_board->talk_button, muse_board->aux_button);
+    char text[192];
+    snprintf(text, sizeof(text),
+             muse_tr("Press the %s button to turn it back on. To just turn the screen off, press the %s button."),
+             muse_tr(muse_board->talk_button), muse_tr(muse_board->aux_button));
     note(list, text);
 }
 
@@ -1288,8 +1323,8 @@ static void tick_home(void)
     }
     set_text(s_home_battery, buf);
 
-    snprintf(buf, sizeof(buf), "Muse %s  -  %s", esp_app_get_description()->version,
-             w.state == MUSE_WIFI_CONNECTED ? w.ip : "offline");
+    snprintf(buf, sizeof(buf), muse_tr("Muse %s  -  %s"), esp_app_get_description()->version,
+             w.state == MUSE_WIFI_CONNECTED ? w.ip : muse_tr("offline"));
     set_text(s_about, buf);
 }
 
@@ -1301,6 +1336,9 @@ void muse_settings_ui_build(lv_obj_t *tile)
         s_text_scale = muse_board->height;
     }
     s_tile = tile;
+    if (muse_i18n_arabic()) {
+        lv_obj_set_style_base_dir(tile, LV_BASE_DIR_RTL, 0);   /* rows, sliders and back arrows mirror */
+    }
     build_home(tile);
     show(s_home);
 }

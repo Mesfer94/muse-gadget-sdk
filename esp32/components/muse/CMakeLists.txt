@@ -38,6 +38,7 @@ if(CONFIG_MUSE_ENABLED)
         "muse_settings.c"
         "muse_settings_ui.c"
         "muse_text.c"
+        "muse_i18n.c"
         "muse_keypad.c"
         "muse_lv_mem.c"
         "muse_link.c"
@@ -49,6 +50,13 @@ if(CONFIG_MUSE_ENABLED)
         list(APPEND srcs "muse_chat_link.c")   # text replies over Link's session
     endif()
     list(APPEND srcs "muse_chat_text.c")
+    if(CONFIG_MUSE_LANG_ARABIC)
+        list(APPEND srcs
+            "fonts/muse_font_ar_12.c"
+            "fonts/muse_font_ar_16.c"
+            "fonts/muse_font_ar_20.c"
+            "fonts/muse_font_ar_28.c")
+    endif()
     # Your own character (tools/muse/AVATAR_RECIPE.md) stands in for the default
     # avatar when avatar/muse_pixel.c exists here; this avatar/ is gitignored. The
     # default is in avatar/ at the top of the project.

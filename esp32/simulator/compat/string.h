@@ -26,6 +26,16 @@
 
 #include <stddef.h>
 
+/* muse_settings_ui.c copies typed text with strdup, which glibc hides from
+ * strict C11. Declaring it again matches the libc's own. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+char *strdup(const char *source);
+#ifdef __cplusplus
+}
+#endif
+
 #if !defined(__APPLE__)
 #ifdef __cplusplus
 extern "C" {

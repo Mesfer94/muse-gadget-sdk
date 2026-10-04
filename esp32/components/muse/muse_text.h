@@ -26,7 +26,9 @@ extern "C" {
  * The screen's fonts are LVGL's builds of unscii and Montserrat: ASCII, and
  * Montserrat's symbols. Text from elsewhere (replies, network names) gets
  * ASCII stand-ins for what they lack: curly quotes become straight ones, an em
- * dash "--", accented letters their plain ones. Emoji go; anything else stays.
+ * dash "--", accented letters their plain ones. Emoji go, and so do Arabic
+ * harakat, which LVGL draws apart from their letters; anything else stays
+ * (Arabic has its own font with CONFIG_MUSE_LANG_ARABIC, muse_i18n.h).
  */
 
 /* The stand-in for the UTF-8 character at s into out, and its length (0 drops

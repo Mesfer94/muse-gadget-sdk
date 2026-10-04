@@ -1,0 +1,5 @@
+# Power off: the buttons' names in a sentence.
+screen=settings
+advance=100
+tap=Power off
+advance=300

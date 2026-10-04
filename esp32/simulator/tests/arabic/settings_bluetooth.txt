@@ -1,0 +1,5 @@
+# Bluetooth: a long note that mixes Arabic with a file name and Chrome.
+screen=settings
+advance=100
+tap=Bluetooth
+advance=300

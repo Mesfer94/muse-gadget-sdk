@@ -25,25 +25,32 @@ import subprocess
 import tempfile
 
 WIDTH = HEIGHT = 412
+STOPWATCH = 466
 HERE = Path(__file__).resolve().parent
 SCENARIOS = tuple(sorted((HERE / "scenarios").glob("*.txt")))
+# Run on the StopWatch's round screen in Arabic (--board stopwatch --lang ar).
+ARABIC_SCENARIOS = tuple(sorted((HERE / "arabic").glob("*.txt")))
+ARABIC_OPTIONS = ("--board", "stopwatch", "--lang", "ar")
 
 
-def read_ppm(path: Path) -> bytes:
+def read_ppm(path: Path, size: int = WIDTH) -> bytes:
     raw = path.read_bytes()
-    header = f"P6\n{WIDTH} {HEIGHT}\n255\n".encode()
+    header = f"P6\n{size} {size}\n255\n".encode()
     assert raw.startswith(header), f"{path}: wrong PPM header"
     pixels = raw[len(header) :]
-    assert len(pixels) == WIDTH * HEIGHT * 3, f"{path}: truncated framebuffer"
+    assert len(pixels) == size * size * 3, f"{path}: truncated framebuffer"
     assert len(set(pixels)) > 8, f"{path}: framebuffer has too few colours"
     return pixels
 
 
-def render(binary: Path, scenario: Path, output: Path) -> tuple[str, subprocess.CompletedProcess[str]]:
+def render(
+    binary: Path, scenario: Path, output: Path, options: tuple[str, ...] = ()
+) -> tuple[str, subprocess.CompletedProcess[str]]:
     env = {**os.environ, "SDL_VIDEODRIVER": "dummy", "SDL_AUDIODRIVER": "dummy"}
     proc = subprocess.run(
         [
             str(binary),
+            *options,
             "--headless",
             "--scenario",
             str(scenario),
@@ -59,7 +66,7 @@ def render(binary: Path, scenario: Path, output: Path) -> tuple[str, subprocess.
         timeout=30,
     )
     assert proc.returncode == 0, f"{scenario.name}:\n{proc.stdout}\n{proc.stderr}"
-    pixels = read_ppm(output)
+    pixels = read_ppm(output, STOPWATCH if "stopwatch" in options else WIDTH)
     return hashlib.sha256(pixels).hexdigest(), proc
 
 
@@ -82,6 +89,18 @@ def main() -> None:
 
         assert len(set(hashes.values())) == len(hashes), f"scenarios rendered identically: {hashes}"
 
+        arabic: dict[str, str] = {}
+        for scenario in ARABIC_SCENARIOS:
+            first, _ = render(binary, scenario, tmp_path / f"ar-{scenario.stem}-1.ppm", ARABIC_OPTIONS)
+            second, _ = render(binary, scenario, tmp_path / f"ar-{scenario.stem}-2.ppm", ARABIC_OPTIONS)
+            assert first == second, f"arabic/{scenario.name}: framebuffer is not deterministic"
+            arabic[scenario.stem] = first
+        assert len(set(arabic.values())) == len(arabic), f"Arabic scenarios rendered identically: {arabic}"
+
+        # In English the StopWatch shows the English UI: --lang ar is what changes it.
+        english, _ = render(binary, HERE / "arabic/settings.txt", tmp_path / "en-settings.ppm", ("--board", "stopwatch"))
+        assert english != arabic["settings"], "--lang ar changed nothing"
+
         # Showing shutdown must not lock subsequent preview state selections.
         after_off = tmp_path / "after-off.txt"
         after_off.write_text("face=off\n" + (HERE / "scenarios/listening.txt").read_text())
@@ -103,6 +122,8 @@ def main() -> None:
 
     for name, digest in sorted(hashes.items()):
         print(f"{name}: {digest}")
+    for name, digest in sorted(arabic.items()):
+        print(f"arabic/{name}: {digest}")
 
 
 if __name__ == "__main__":

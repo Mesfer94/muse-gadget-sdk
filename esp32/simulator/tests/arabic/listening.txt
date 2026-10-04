@@ -1,0 +1,5 @@
+# Listening, with the mode's name and a caption in Arabic.
+face=listening
+level=0.6
+caption=LISTENING 2.4s
+advance=400

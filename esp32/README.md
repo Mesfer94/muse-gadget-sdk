@@ -272,6 +272,9 @@ their upstream licenses:
   decoder, is CC0-1.0. See [`components/minimp3/LICENSE`](components/minimp3/LICENSE).
 - [`main/pixel_font.c`](main/pixel_font.c), the Adafruit GFX font, is
   BSD-2-Clause, as its header says.
+- [`components/muse/fonts/`](components/muse/fonts), the Arabic fonts made
+  from Noto Sans Arabic, are under the SIL Open Font License 1.1. See
+  [`components/muse/fonts/OFL.txt`](components/muse/fonts/OFL.txt).
 
 ESP-IDF components fetched at build time (into `managed_components/`) are
 under their own licenses.

@@ -1,0 +1,6 @@
+# A short Arabic reply, read on screen: one line, centred.
+face=speaking
+speaker=false
+advance=100
+reply=أهلا! كيف أساعدك اليوم؟
+advance=600

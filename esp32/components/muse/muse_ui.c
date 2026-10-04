@@ -35,6 +35,7 @@
 #include "muse_board.h"
 #include "muse_chat.h"
 #include "muse_console.h"
+#include "muse_i18n.h"
 #include "muse_link.h"
 #include "muse_mem.h"
 #include "muse_menu.h"
@@ -450,7 +451,7 @@ static const lv_font_t *font_pick(const lv_font_t *full, const lv_font_t *compac
 static lv_obj_t *make_label(lv_obj_t *parent, const lv_font_t *font, uint32_t color)
 {
     lv_obj_t *l = lv_label_create(parent);
-    lv_obj_set_style_text_font(l, font, 0);
+    lv_obj_set_style_text_font(l, muse_font(font), 0);
     lv_obj_set_style_text_color(l, lv_color_hex(color), 0);
     lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(l, "");
@@ -665,7 +666,7 @@ static void build_answer(lv_obj_t *face, int ring_in)
         int d = ring_in - spk_r - 4;   /* just inside the ring, even when swollen */
         spk_x = -(int)sqrtf((float)(d * d - spk_y * spk_y));
     }
-    const lv_font_t *font = &lv_font_unscii_16;
+    const lv_font_t *font = muse_font(&lv_font_unscii_16);   /* taller lines with Arabic */
     int cw = lv_font_get_glyph_width(font, 'M', ' ');
     int pitch = lv_font_get_line_height(font) + CAPTION_LINE_SPACE;
 
@@ -774,6 +775,12 @@ static void build_screen(void)
     lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
     lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+    if (muse_i18n_arabic()) {
+        /* Each label's text runs the way its first letter goes: Arabic right to
+         * left, English left to right. Only RTL mirrors a layout, so the face
+         * stays put. */
+        lv_obj_set_style_base_dir(scr, LV_BASE_DIR_AUTO, 0);
+    }
 
     lv_obj_t *face = scr;
     if (muse_board->touch) {
@@ -815,7 +822,7 @@ static void build_screen(void)
      * whose blank bottom rows can tuck in behind the meter.
      */
     int ring_in = (s_w < s_h ? s_w : s_h) / 2 - 10;   /* the ring's inner edge */
-    int cap_h = 2 * lv_font_get_line_height(&lv_font_unscii_16) + CAPTION_LINE_SPACE;
+    int cap_h = 2 * lv_font_get_line_height(muse_font(&lv_font_unscii_16)) + CAPTION_LINE_SPACE;
     int cap_bottom = 179;                              /* a 466 px circle's; fine for rectangles */
     if (muse_board->round) {
         cap_bottom = (int)sqrtf((float)(ring_in * ring_in - CAPTION_W * CAPTION_W / 4)) - 3;
@@ -854,9 +861,12 @@ static void build_screen(void)
 
     /* The compact layout leaves the state to the avatar and the caption,
      * unless the screen is tall enough to fit it in small type above Muse. */
-    s_state_lbl = make_label(face, s_small ? &lv_font_unscii_8 : &lv_font_unscii_16, 0xffffff);
-    lv_obj_set_style_text_letter_space(s_state_lbl, s_small ? 1 : 2, 0);
-    lv_obj_align(s_state_lbl, LV_ALIGN_TOP_MID, 0, s_small ? 22 : 40 + s_dy);
+    const lv_font_t *state_font = s_small ? &lv_font_unscii_8 : &lv_font_unscii_16;
+    int state_y = s_small ? 22 : 40 + s_dy;
+    s_state_lbl = make_label(face, state_font, 0xffffff);
+    /* Spaced-out capitals; Arabic's letters join, so they stay together. */
+    lv_obj_set_style_text_letter_space(s_state_lbl, muse_i18n_arabic() ? 0 : (s_small ? 1 : 2), 0);
+    lv_obj_align(s_state_lbl, LV_ALIGN_TOP_MID, 0, state_y);
     lv_obj_set_flag(s_state_lbl, LV_OBJ_FLAG_HIDDEN, s_small && !s_tall && s_h < 200);
 
     /* This gadget's own name, dim under the state while it's unpaired: with
@@ -864,7 +874,11 @@ static void build_screen(void)
      * Muse app. update_chrome() fills it in, shortens it to the hex tail on a
      * screen too narrow for the whole thing, and empties it once paired. */
     s_name_lbl = make_label(face, s_small ? &lv_font_unscii_8 : &lv_font_unscii_16, COLOR_DIM);
-    lv_obj_align(s_name_lbl, LV_ALIGN_TOP_MID, 0, s_small ? 32 : 60 + s_dy);
+    int name_y = s_small ? 32 : 60 + s_dy;
+    if (muse_i18n_arabic()) {
+        name_y = state_y + lv_font_get_line_height(muse_font(state_font)) + 2;   /* under its taller line */
+    }
+    lv_obj_align(s_name_lbl, LV_ALIGN_TOP_MID, 0, name_y);
     /* Same rule as the state label: a square 128 px screen centres Muse over
      * these rows, so there's nowhere to put this without covering the face. */
     lv_obj_set_flag(s_name_lbl, LV_OBJ_FLAG_HIDDEN, s_small && !s_tall && s_h < 200);
@@ -1024,7 +1038,7 @@ static void build_overlays(void)
     lv_obj_set_style_radius(s_camera_hint, 18, 0);
     lv_obj_add_flag(s_camera_hint, LV_OBJ_FLAG_HIDDEN);
     lv_obj_t *hint_text = lv_label_create(s_camera_hint);
-    lv_label_set_text(hint_text, "TAP TO TAKE PHOTO");
+    muse_label_set(hint_text, muse_tr("TAP TO TAKE PHOTO"));
     lv_obj_center(hint_text);
     lv_obj_add_event_cb(s_camera_hint, on_camera_hint_clicked, LV_EVENT_CLICKED, NULL);
 #endif
@@ -1048,11 +1062,11 @@ static void build_overlays(void)
     lv_obj_remove_flag(s_pair, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(s_pair, LV_OBJ_FLAG_HIDDEN);
     s_pair_title = make_label(s_pair, font_pick(&lv_font_montserrat_20, FONT_COMPACT), COLOR_LIT);
-    lv_label_set_text(s_pair_title, "Pairing code");
+    muse_label_set(s_pair_title, muse_tr("Pairing code"));
     s_pair_code = make_label(s_pair, font_pick(&lv_font_montserrat_28, &lv_font_montserrat_20), COLOR_ACCENT);
     lv_obj_set_style_text_letter_space(s_pair_code, s_small ? 2 : 6, 0);
     s_pair_hint = make_label(s_pair, font_pick(&lv_font_montserrat_14, FONT_COMPACT), COLOR_DIM);
-    lv_label_set_text(s_pair_hint, s_small ? "Enter on phone" : "Enter it on your phone");
+    muse_label_set(s_pair_hint, muse_tr(s_small ? "Enter on phone" : "Enter it on your phone"));
     /* Wraps: "bottom right button" is wider than the AIPI's card. */
     lv_obj_set_width(s_pair_hint, lv_pct(100));
     lv_label_set_long_mode(s_pair_hint, LV_LABEL_LONG_MODE_WRAP);
@@ -1211,17 +1225,18 @@ static void update_chrome(float now)
     if (b.passkey || confirm) {
         char code[24], hint[40];
         if (confirm) {
-            strlcpy(code, s_small ? "Press" : "Press button", sizeof(code));
-            snprintf(hint, sizeof(hint), s_small ? "%s button" : "Press the %s button", muse_board->talk_button);
+            strlcpy(code, muse_tr(s_small ? "Press" : "Press button"), sizeof(code));
+            snprintf(hint, sizeof(hint), muse_tr(s_small ? "%s button" : "Press the %s button"),
+                     muse_tr(muse_board->talk_button));
         } else {
             snprintf(code, sizeof(code), "%06lu", (unsigned long)b.passkey);
-            strlcpy(hint, s_small ? "Enter on phone" : "Enter it on your phone", sizeof(hint));
+            strlcpy(hint, muse_tr(s_small ? "Enter on phone" : "Enter it on your phone"), sizeof(hint));
         }
-        const char *title = confirm ? (s_small ? "Muse app" : "Pair with Muse app") : "Pairing code";
+        const char *title = muse_tr(confirm ? (s_small ? "Muse app" : "Pair with Muse app") : "Pairing code");
         if (strcmp(code, lv_label_get_text(s_pair_code)) != 0) {
             lv_label_set_text(s_pair_code, code);
-            lv_label_set_text(s_pair_title, title);
-            lv_label_set_text(s_pair_hint, hint);
+            muse_label_set(s_pair_title, title);
+            muse_label_set(s_pair_hint, hint);
         }
     }
     lv_obj_set_flag(s_pair, LV_OBJ_FLAG_HIDDEN, !b.passkey && !confirm);
@@ -1279,16 +1294,16 @@ static void update_power(float now)
     muse_power_t p = muse_state_power();
     char buf[32];
     if (p.battery_pct < 0) {
-        strlcpy(buf, p.usb ? (s_small ? "USB" : "USB POWER") : "", sizeof(buf));
+        strlcpy(buf, p.usb ? muse_tr(s_small ? "USB" : "USB POWER") : "", sizeof(buf));
     } else if (s_small) {
         snprintf(buf, sizeof(buf), "%s%d%%", p.charging ? "+" : "", p.battery_pct);
     } else if (p.charging) {
-        snprintf(buf, sizeof(buf), "CHARGING %d%%", p.battery_pct);
+        snprintf(buf, sizeof(buf), muse_tr("CHARGING %d%%"), p.battery_pct);
     } else {
-        snprintf(buf, sizeof(buf), "BATTERY %d%%", p.battery_pct);
+        snprintf(buf, sizeof(buf), muse_tr("BATTERY %d%%"), p.battery_pct);
     }
-    if (strcmp(buf, lv_label_get_text(s_power_lbl)) != 0) {
-        lv_label_set_text(s_power_lbl, buf);
+    if (!muse_label_shows(s_power_lbl, buf)) {
+        muse_label_set(s_power_lbl, buf);
     }
 }
 
@@ -1298,7 +1313,7 @@ static void update_status(muse_mode_t mode, float now)
     const char *name = mode == MUSE_MODE_IDLE ? s_idle_name : MODE_NAMES[mode];
 
     if (name != s_shown_name) {
-        lv_label_set_text(s_state_lbl, name);
+        muse_label_set(s_state_lbl, muse_tr(name));
         s_shown_name = name;
     }
     if ((int)mode != s_shown_state) {
@@ -1383,7 +1398,13 @@ static void update_status(muse_mode_t mode, float now)
     }
     if (fresh) {
         lv_obj_t *lbl = answer >= 0 ? s_reply_lbl : s_caption_lbl;
-        lv_label_set_text(lbl, caption);
+        const char *text = muse_tr(caption);
+        muse_label_set(lbl, text);
+        if (answer >= 0) {
+            /* An Arabic reply over several lines reads from the right. */
+            const answer_layout_t *l = &s_answers[answer];
+            lv_obj_set_style_text_align(lbl, muse_text_align(lbl, text, l->w, l->align), 0);
+        }
         lv_obj_set_flag(lbl, LV_OBJ_FLAG_HIDDEN, !caption[0]);
         if (s_reply_lbl) {
             lv_obj_add_flag(answer >= 0 ? s_caption_lbl : s_reply_lbl, LV_OBJ_FLAG_HIDDEN);
@@ -1487,6 +1508,7 @@ static void frame_tick(lv_timer_t *timer)
 
 esp_err_t muse_ui_start(void)
 {
+    muse_i18n_init();
     s_w = muse_board->width;
     s_h = muse_board->height;
     /* The full layout assumes room for the 466 px board's header and bottom

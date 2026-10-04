@@ -116,6 +116,19 @@ menu "Muse"
             memory and preview decoding shares CPU time with voice and Link.
             Leave disabled to build without camera support.
 
+    config MUSE_LANG_ARABIC
+        bool "Arabic screen"
+        depends on MUSE_ENABLED
+        default n
+        select LV_USE_BIDI
+        select LV_USE_ARABIC_PERSIAN_CHARS
+        help
+            Show the UI in Arabic, right to left, with fonts that also draw
+            Arabic replies from Muse. English text such as network names
+            still shows as it is. Adds about 64 KB of flash, mostly Noto
+            Sans Arabic in four sizes (components/muse/fonts, made by
+            tools/gen_arabic_font.sh).
+
     config MUSE_HATCH
         bool "Muse's own voice session"
         depends on MUSE_ENABLED

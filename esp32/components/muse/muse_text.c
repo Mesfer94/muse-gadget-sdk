@@ -162,6 +162,8 @@ static const char *stand_in(int32_t cp)
         return " ";   /* spaces of other widths */
     }
     if ((cp >= 0x0300 && cp <= 0x036F)      /* accents typed after their letter */
+        || (cp >= 0x064B && cp <= 0x065F)   /* Arabic harakat, which LVGL can't place */
+        || cp == 0x0670                     /* superscript alef, another */
         || (cp >= 0x200B && cp <= 0x200F)   /* zero-width spaces and joiners, direction marks */
         || cp == 0x20E3                     /* keycap */
         || (cp >= 0x2600 && cp <= 0x27BF)   /* symbols and dingbats */

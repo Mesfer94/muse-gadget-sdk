@@ -1,0 +1,6 @@
+# The pairing card and the gadget's name while unpaired.
+paired=false
+ble=advertising
+passkey=482913
+link=pairing
+advance=400

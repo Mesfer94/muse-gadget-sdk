@@ -1,0 +1,7 @@
+# Wi-Fi: Arabic and English network names, signal strengths, a long note.
+screen=settings
+advance=100
+tap=Wi-Fi
+advance=300
+scroll=230
+advance=200

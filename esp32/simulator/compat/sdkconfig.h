@@ -24,3 +24,5 @@
 #define CONFIG_MUSE_CONSOLE_UART 0
 #define CONFIG_PM_PROFILING 0
 #define CONFIG_MUSE_BOARD_SIMULATOR 1
+/* Arabic is built in; muse_simulator --lang ar turns it on (muse_i18n.h). */
+#define CONFIG_MUSE_LANG_ARABIC 1

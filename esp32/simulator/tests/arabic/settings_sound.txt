@@ -1,0 +1,7 @@
+# Sound: a switch and sliders, right to left, and a long note.
+screen=settings
+advance=100
+tap=Sound
+advance=300
+scroll=120
+advance=200

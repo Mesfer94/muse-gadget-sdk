@@ -1,0 +1,6 @@
+# The speaker on: a reply that's heard gets three centred lines under Muse.
+face=speaking
+speaker=true
+advance=100
+reply=صباح الخير! الطقس اليوم مشمس والحرارة 28 درجة.
+advance=600

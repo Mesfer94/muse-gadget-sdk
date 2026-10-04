@@ -22,7 +22,6 @@
 #include "muse_console.h"
 #include "muse_menu.h"
 #include "muse_settings.h"
-#include "muse_settings_ui.h"
 
 #define SIM_DEFAULT_NAME "MuseGadget-SIM001"
 #define SIM_DEFAULT_SSID "Muse Simulator"
@@ -184,24 +183,6 @@ void muse_hatch_status(muse_hatch_status_t *out)
 muse_link_state_t muse_link_state(void)
 {
     return s_link;
-}
-
-void muse_settings_ui_build(lv_obj_t *tile)
-{
-    lv_obj_t *label = lv_label_create(tile);
-    lv_label_set_text(label, "Settings unavailable in preview");
-    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_center(label);
-}
-
-void muse_settings_ui_tick(bool visible)
-{
-    (void)visible;
-}
-
-bool muse_settings_ui_in_subpage(void)
-{
-    return false;
 }
 
 void muse_menu_key(muse_menu_key_t key)

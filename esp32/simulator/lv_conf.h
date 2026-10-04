@@ -59,6 +59,13 @@
 #define LV_FONT_UNSCII_16 1
 #define LV_FONT_DEFAULT &lv_font_montserrat_20
 
+/* Arabic (muse_simulator --lang ar, muse_i18n.h): letters join, and text
+ * runs the way it's written. As on the StopWatch overlay; with the base
+ * direction left to auto, English text lays out exactly as without them. */
+#define LV_USE_BIDI 1
+#define LV_BIDI_BASE_DIR_DEF LV_BASE_DIR_AUTO
+#define LV_USE_ARABIC_PERSIAN_CHARS 1
+
 #define LV_USE_THEME_DEFAULT 1
 #define LV_THEME_DEFAULT_DARK 1
 #define LV_THEME_DEFAULT_GROW 1

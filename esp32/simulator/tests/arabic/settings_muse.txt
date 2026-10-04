@@ -1,0 +1,7 @@
+# Muse: status lines and a long note, scrolled to the end.
+screen=settings
+advance=100
+tap=Muse
+advance=300
+scroll=250
+advance=200

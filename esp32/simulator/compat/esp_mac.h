@@ -16,12 +16,21 @@
 
 #pragma once
 
-#include "lvgl.h"
-#include "muse_board.h"
+#include <stdint.h>
 
-/* The desktop board profile and the SDL display it creates. */
-/* "watcher" (the default, 412 px) or "stopwatch" (466 px, masked round);
- * false for another name. Before sim_board_get. */
-bool sim_board_select(const char *name);
-const muse_board_t *sim_board_get(void);
-lv_display_t *sim_board_display(void);
+#include "esp_err.h"
+
+/* A fixed documentation-range MAC for the Wi-Fi page. */
+typedef enum {
+    ESP_MAC_WIFI_STA,
+} esp_mac_type_t;
+
+static inline esp_err_t esp_read_mac(uint8_t *mac, esp_mac_type_t type)
+{
+    static const uint8_t SIM_MAC[6] = { 0x02, 0x00, 0x5E, 0x00, 0x53, 0x01 };
+    (void)type;
+    for (int i = 0; i < 6; i++) {
+        mac[i] = SIM_MAC[i];
+    }
+    return ESP_OK;
+}

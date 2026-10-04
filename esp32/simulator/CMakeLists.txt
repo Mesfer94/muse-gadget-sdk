@@ -151,9 +151,18 @@ add_executable(muse_simulator
     src/sim_board.c
     src/sim_platform.c
     src/sim_services.c
+    src/sim_settings.c
     "${MUSE_COMPONENT_DIR}/muse_ui.c"
     "${MUSE_COMPONENT_DIR}/muse_state.c"
     "${MUSE_COMPONENT_DIR}/muse_text.c"
+    "${MUSE_COMPONENT_DIR}/muse_chat_text.c"
+    "${MUSE_COMPONENT_DIR}/muse_settings_ui.c"
+    "${MUSE_COMPONENT_DIR}/muse_keypad.c"
+    "${MUSE_COMPONENT_DIR}/muse_i18n.c"
+    "${MUSE_COMPONENT_DIR}/fonts/muse_font_ar_12.c"
+    "${MUSE_COMPONENT_DIR}/fonts/muse_font_ar_16.c"
+    "${MUSE_COMPONENT_DIR}/fonts/muse_font_ar_20.c"
+    "${MUSE_COMPONENT_DIR}/fonts/muse_font_ar_28.c"
     "${MUSE_COMPONENT_DIR}/../../avatar/muse_pixel.c"
 )
 

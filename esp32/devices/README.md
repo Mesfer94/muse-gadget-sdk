@@ -161,7 +161,10 @@ switches the panel and touch resets, audio power and the amp; its power chip
 Grove port aren't used yet. [M5Unified](https://github.com/m5stack/M5Unified)
 and M5's [factory firmware](https://github.com/m5stack/M5StopWatch-UserDemo)
 are the references. It enumerates as the chip's own USB serial port, so
-flashing needs nothing special: `tools/muse/board.sh flash stopwatch`.
+flashing needs nothing special: `tools/muse/board.sh flash stopwatch`. Its
+screen is in Arabic, right to left (`CONFIG_MUSE_LANG_ARABIC` in its overlay);
+set it to `n` for English. `simulator/` previews it with `--board stopwatch
+--lang ar`.
 
 The M5Stack CoreS3 runs on Espressif's
 [BSP](https://github.com/espressif/esp-bsp/tree/master/bsp/m5stack_core_s3),

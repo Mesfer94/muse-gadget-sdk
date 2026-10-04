@@ -1,0 +1,6 @@
+# A long Arabic reply over several lines: right-aligned, letters joined.
+face=speaking
+speaker=false
+advance=100
+reply=القهوة العربية جزء من الضيافة في الجزيرة العربية، وتقدم عادة مع التمر. تحمص الحبوب تحميصا خفيفا ويضاف إليها الهيل وأحيانا الزعفران، ثم تصب في فناجين صغيرة.
+advance=600

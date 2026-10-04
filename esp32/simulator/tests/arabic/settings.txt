@@ -1,0 +1,3 @@
+# Settings' home page.
+screen=settings
+advance=300

@@ -1,0 +1,6 @@
+# Arabic with digits and English words in one reply.
+face=speaking
+speaker=false
+advance=100
+reply=موعدك القادم الساعة 3:30 مع Sarah عبر Zoom، والحرارة في Riyadh اليوم 41 درجة. البطارية 72% وسرعة الشبكة 120 Mbps.
+advance=600

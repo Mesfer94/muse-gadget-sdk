@@ -16,12 +16,13 @@
 
 #pragma once
 
-#include "lvgl.h"
-#include "muse_board.h"
+/* The firmware version the settings' About line shows. */
+typedef struct {
+    char version[32];
+} esp_app_desc_t;
 
-/* The desktop board profile and the SDL display it creates. */
-/* "watcher" (the default, 412 px) or "stopwatch" (466 px, masked round);
- * false for another name. Before sim_board_get. */
-bool sim_board_select(const char *name);
-const muse_board_t *sim_board_get(void);
-lv_display_t *sim_board_display(void);
+static inline const esp_app_desc_t *esp_app_get_description(void)
+{
+    static const esp_app_desc_t desc = { .version = "sim" };
+    return &desc;
+}

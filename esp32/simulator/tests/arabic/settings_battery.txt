@@ -1,0 +1,5 @@
+# Battery: figures beside Arabic labels.
+screen=settings
+advance=100
+tap=Battery
+advance=1200

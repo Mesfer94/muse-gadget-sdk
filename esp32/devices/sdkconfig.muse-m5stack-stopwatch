@@ -18,6 +18,14 @@
 CONFIG_IDF_TARGET="esp32s3"
 CONFIG_MUSE_BOARD_M5STACK_STOPWATCH=y
 
+# The UI in Arabic (components/muse/muse_i18n.h): joined letters, right to
+# left. MUSE_LANG_ARABIC selects LVGL's bidi and Arabic shaping; the base
+# direction stays automatic, so English text keeps going left to right.
+CONFIG_MUSE_LANG_ARABIC=y
+CONFIG_LV_USE_BIDI=y
+CONFIG_LV_BIDI_DIR_AUTO=y
+CONFIG_LV_USE_ARABIC_PERSIAN_CHARS=y
+
 CONFIG_SPIRAM=y
 CONFIG_SPIRAM_MODE_OCT=y
 CONFIG_SPIRAM_SPEED_80M=y

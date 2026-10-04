@@ -23,6 +23,9 @@ The simulator uses these upstream projects at build and runtime:
 - [SDL 2.32.10](https://github.com/libsdl-org/SDL/releases/tag/release-2.32.10),
   licensed under the zlib License.
 
+It also compiles the Noto Sans Arabic fonts in `components/muse/fonts/`,
+licensed under the SIL Open Font License 1.1 (`components/muse/fonts/OFL.txt`).
+
 CMake prefers a compatible system SDL2 package. It fetches the pinned LVGL
 archive by default so the simulator always uses its required fonts, drivers,
 and private APIs, and fetches SDL when no compatible package is installed.
