@@ -217,6 +217,32 @@ void muse_text_to_ascii(char *s, size_t cap)
     }
 }
 
+static muse_text_width_fn s_width;
+
+void muse_text_set_width(muse_text_width_fn fn)
+{
+    s_width = fn;
+}
+
+int muse_text_eighths(const char *s, size_t *len)
+{
+    char shown[4];
+    int n = muse_text_ascii(s, len, shown);
+    if (!s_width) {
+        return 8 * (n < 0 ? 1 : n);
+    }
+    if (n < 0) {
+        size_t l;
+        int32_t cp = decode((const unsigned char *)s, &l);
+        return s_width(cp < 0 ? 0xFFFD : (uint32_t)cp);
+    }
+    int w = 0;
+    for (int i = 0; i < n; i++) {
+        w += s_width((unsigned char)shown[i]);
+    }
+    return w;
+}
+
 const char *muse_text_showable(const char *text, char *buf, size_t cap)
 {
     const char *p = text;

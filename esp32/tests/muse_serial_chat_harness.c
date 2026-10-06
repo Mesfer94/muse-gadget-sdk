@@ -17,19 +17,29 @@
 /* Drives the serial console's "@chat" encoder and line unescaper (muse_chat_text.c)
  * for test_muse_serial_chat.py, which parses the result the way tools/muse/chat.py does.
  *   console    stdin is a reply's text: prints the lines a typed turn sends for it
- *   unescape   stdin is console lines: prints each unescaped, as "<length>:<bytes>" */
+ *   unescape   stdin is console lines: prints each unescaped, as "<length>:<bytes>"
+ *   page       stdin is a reply's text: prints its opening page, with capitals
+ *              twice as wide as other letters (muse_text_set_width) */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "muse_chat.h"
+#include "muse_chat_priv.h"
 #include "muse_state.h"
+#include "muse_text.h"
 
 /* Captions page to the screen; the console lines tested here don't. */
 void muse_state_page(int *cols, int *lines)
 {
     *cols = 16;
     *lines = 2;
+}
+
+/* Capitals two columns, Arabic letters half of one, the rest one. */
+static int wide_capitals(uint32_t cp)
+{
+    return cp >= 'A' && cp <= 'Z' ? 16 : cp >= 0x600 && cp <= 0x6FF ? 4 : 8;
 }
 
 static char *read_all(size_t *len)
@@ -79,8 +89,14 @@ int main(int argc, char **argv)
                 break;
             }
         }
+    } else if (argc > 1 && !strcmp(argv[1], "page")) {
+        char page[400];
+        muse_text_set_width(wide_capitals);
+        if (muse_hatch_caption_at(in, 0, page, sizeof(page))) {
+            fputs(page, stdout);
+        }
     } else {
-        fprintf(stderr, "usage: %s console|unescape < input\n", argv[0]);
+        fprintf(stderr, "usage: %s console|unescape|page < input\n", argv[0]);
         return 2;
     }
     free(in);

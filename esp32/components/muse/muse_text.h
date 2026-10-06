@@ -17,6 +17,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,6 +42,19 @@ void muse_text_to_ascii(char *s, size_t cap);
 
 /* text, or if it needs stand-ins and fits in cap bytes, a copy with them in buf. */
 const char *muse_text_showable(const char *text, char *buf, size_t cap);
+
+/*
+ * How wide code point `cp` is on screen, in eighths of a reply page's column.
+ * The UI sets one when its reply font's letters vary in width (in Arabic, Noto
+ * draws them); without it every character shown takes one column. It's called
+ * from the task that pages replies, so it mustn't touch LVGL.
+ */
+typedef int (*muse_text_width_fn)(uint32_t cp);
+void muse_text_set_width(muse_text_width_fn fn);
+
+/* The width of the UTF-8 character at s as shown (its stand-in, if it has one),
+ * in eighths of a column; *len is the character's length in bytes. */
+int muse_text_eighths(const char *s, size_t *len);
 
 #ifdef __cplusplus
 }

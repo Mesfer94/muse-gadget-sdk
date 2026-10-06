@@ -1,0 +1,7 @@
+# An English reply in capitals inside the Arabic UI: wide Latin letters, paged
+# by what they take, so no line spills past the page.
+face=speaking
+speaker=false
+advance=100
+reply=WELCOME TO THE MUSE GADGET SDK. BUILD, FLASH AND MONITOR YOUR BOARD WITH ONE COMMAND, EVERY TIME YOU CHANGE THE FIRMWARE OR ITS SETTINGS.
+advance=600

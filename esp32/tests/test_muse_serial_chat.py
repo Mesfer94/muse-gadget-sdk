@@ -115,6 +115,26 @@ class HarnessTest(unittest.TestCase):
                 self.assertEqual(frames[-2]["messages"], 2)
                 self.assertEqual(frames[-1], {"seq": frames[-1]["seq"], "type": "error", "text": "TOO LONG"})
 
+    def test_page_lines_fit_by_width(self) -> None:
+        # The harness pages to 16 columns x 2 lines, capitals two columns wide.
+        def width(line: str) -> int:
+            return sum(16 if "A" <= c <= "Z" else 4 if "\u0600" <= c <= "\u06ff" else 8 for c in line)
+
+        for text, first in (
+            ("BUILD FLASH AND MONITOR", "BUILD"),   # "BUILD FLASH" would be 21 columns
+            ("build flash and monitor", "build flash and"),
+            ("\u0645\u0631\u062d\u0628\u0627 " * 8, None),
+        ):
+            with self.subTest(text=text):
+                lines = self.run_harness("page", text.encode()).decode().split("\n")
+                self.assertEqual(len(lines), 2)
+                for line in lines:
+                    self.assertLessEqual(width(line), 16 * 8, msg=line)
+                if first:
+                    self.assertEqual(lines[0], first)
+                else:
+                    self.assertGreater(len(lines[0]), 16)   # narrow letters: more than 16 a line
+
     def test_long_text_splits_between_characters(self) -> None:
         frames = [f for f in self.frames("é\U0001F989" * 500) if f["type"] == "text" and f["msg"] == 0]
         self.assertGreater(len(frames), 1)

@@ -97,9 +97,9 @@ void muse_hatch_tail_words(const char *src, char *out, size_t cap)
 }
 
 /*
- * The next line of `text` wrapped to `cols` characters as the caption shows
- * them (an ellipsis as three dots, muse_text.h), splitting only words longer
- * than a line.
+ * The next line of `text` wrapped to `cols` columns as the caption shows it
+ * (an ellipsis as three dots, letters as wide as the screen's font draws them,
+ * muse_text.h), splitting only words longer than a line.
  */
 static bool next_line(const char **text, int cols, const char **start, size_t *len)
 {
@@ -111,10 +111,8 @@ static bool next_line(const char **text, int cols, const char **start, size_t *l
     int n = 0;
     while (*end && *end != '\n') {
         size_t bytes;
-        char shown[4];
-        int w = muse_text_ascii(end, &bytes, shown);
-        w = w < 0 ? 1 : w;
-        if (n + w > cols && n) {
+        int w = muse_text_eighths(end, &bytes);
+        if (n + w > cols * 8 && n) {
             break;
         }
         if (*end == ' ') {

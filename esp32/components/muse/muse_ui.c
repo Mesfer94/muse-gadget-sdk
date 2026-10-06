@@ -43,6 +43,7 @@
 #include "muse_settings.h"
 #include "muse_settings_ui.h"
 #include "muse_state.h"
+#include "muse_text.h"
 #include "muse_wifi.h"
 #if CONFIG_MUSE_WATCHER_CAMERA
 #include "boards/watcher_camera.h"
@@ -652,6 +653,39 @@ static void add_hides(answer_layout_t *l, int n)
 }
 
 /*
+ * In Arabic, a reply is drawn in Noto (muse_i18n.c), whose letters vary in
+ * width; a page of them is cut to fit by what they really take, in eighths of
+ * an unscii cell (muse_text_set_width). The widths are read here, once, on the
+ * LVGL task, since the voice task pages replies and LVGL's fonts cache as they
+ * look glyphs up. ASCII and Arabic's block have their own; anything else is a
+ * cell.
+ */
+static uint8_t s_ascii_w[0x80], s_arabic_w[0x100];
+
+static int reply_width(uint32_t cp)
+{
+    return cp < 0x80 ? s_ascii_w[cp] : (cp >= 0x600 && cp <= 0x6FF) ? s_arabic_w[cp - 0x600] : 8;
+}
+
+static void reply_widths(const lv_font_t *font, int cw)
+{
+    if (font == &lv_font_unscii_16) {
+        return;   /* one cell a character */
+    }
+    for (uint32_t cp = 0; cp < 0x80 + 0x100; cp++) {
+        uint32_t c = cp < 0x80 ? cp : cp - 0x80 + 0x600;
+        int w = c < 0x20 ? 8 : (lv_font_get_glyph_width(font, c, 0) * 8 + cw - 1) / cw;
+        w = w > 255 ? 255 : w;
+        if (cp < 0x80) {
+            s_ascii_w[cp] = (uint8_t)w;
+        } else {
+            s_arabic_w[cp - 0x80] = (uint8_t)w;
+        }
+    }
+    muse_text_set_width(reply_width);
+}
+
+/*
  * The answer layouts, both with Muse centred. Heard: Muse a size smaller,
  * where it was if there's room, over three lines at the bottom. Read: Muse
  * small under the status line, and under it and the speaker button the
@@ -667,17 +701,10 @@ static void build_answer(lv_obj_t *face, int ring_in)
         spk_x = -(int)sqrtf((float)(d * d - spk_y * spk_y));
     }
     const lv_font_t *font = muse_font(&lv_font_unscii_16);   /* taller lines with Arabic */
-    /* A page's columns are unscii's cells, as muse_chat_text.c counts them. In
-     * Arabic a reply's Latin is Noto Sans, whose letters vary: a cell is then
-     * as wide as its average one, so a page of English still fits. */
+    /* A page's columns are unscii's cells; letters of another width count as
+     * the part of a cell they take (reply_widths). */
     int cw = lv_font_get_glyph_width(&lv_font_unscii_16, 'M', ' ');
-    if (font != &lv_font_unscii_16) {
-        static const char SAMPLE[] = "the quick brown fox jumps over the lazy dog 0123456789";
-        lv_point_t size;
-        lv_text_get_size(&size, SAMPLE, font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
-        int n = (int)sizeof(SAMPLE) - 1, avg = (size.x + n - 1) / n;
-        cw = avg > cw ? avg : cw;
-    }
+    reply_widths(font, cw);
     int pitch = lv_font_get_line_height(font) + CAPTION_LINE_SPACE;
 
     answer_layout_t *l = &s_answers[ANSWER_HEARD];
