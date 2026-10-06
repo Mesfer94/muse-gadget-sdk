@@ -138,7 +138,9 @@ static void fit_note(lv_obj_t *l)
     }
 }
 
-static lv_obj_t *label(lv_obj_t *parent, const lv_font_t *font, uint32_t color, const char *text)
+/* The UI's own words go through muse_tr; names (networks, servers, phones)
+ * are shown as they are, even one that reads like a word the UI translates. */
+static lv_obj_t *label_ex(lv_obj_t *parent, const lv_font_t *font, uint32_t color, const char *text, bool tr)
 {
     char shown[SHOWN_MAX];
     lv_obj_t *l = lv_label_create(parent);
@@ -150,18 +152,34 @@ static lv_obj_t *label(lv_obj_t *parent, const lv_font_t *font, uint32_t color, 
         lv_obj_set_style_base_dir(l, LV_BASE_DIR_AUTO, 0);
         lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_RIGHT, 0);
     }
-    muse_label_set(l, muse_text_showable(muse_tr(text), shown, sizeof(shown)));
+    muse_label_set(l, muse_text_showable(tr ? muse_tr(text) : text, shown, sizeof(shown)));
     return l;
 }
 
-static void set_text(lv_obj_t *l, const char *text)
+static lv_obj_t *label(lv_obj_t *parent, const lv_font_t *font, uint32_t color, const char *text)
+{
+    return label_ex(parent, font, color, text, true);
+}
+
+static void set_text_ex(lv_obj_t *l, const char *text, bool tr)
 {
     char shown[SHOWN_MAX];
-    text = muse_text_showable(muse_tr(text), shown, sizeof(shown));
+    text = muse_text_showable(tr ? muse_tr(text) : text, shown, sizeof(shown));
     if (!muse_label_shows(l, text)) {
         muse_label_set(l, text);
         fit_note(l);
     }
+}
+
+static void set_text(lv_obj_t *l, const char *text)
+{
+    set_text_ex(l, text, true);
+}
+
+/* A name, not one of the UI's words. */
+static void set_name(lv_obj_t *l, const char *name)
+{
+    set_text_ex(l, name, false);
 }
 
 static lv_obj_t *note(lv_obj_t *list, const char *text)
@@ -276,15 +294,15 @@ static lv_obj_t *card(lv_obj_t *list, bool clickable)
     return c;
 }
 
-/* Tappable row: icon, text, right-aligned value. */
-static lv_obj_t *row(lv_obj_t *list, const char *icon, const char *text, lv_obj_t **value_out,
-                     lv_event_cb_t cb, void *user)
+/* Tappable row: icon, text (translated with `tr`), right-aligned value. */
+static lv_obj_t *row_ex(lv_obj_t *list, const char *icon, const char *text, bool tr, lv_obj_t **value_out,
+                        lv_event_cb_t cb, void *user)
 {
     lv_obj_t *c = card(list, true);
     if (icon) {
         label(c, &lv_font_montserrat_20, COLOR_ACCENT, icon);
     }
-    lv_obj_t *t = label(c, &lv_font_montserrat_20, COLOR_TEXT, text);
+    lv_obj_t *t = label_ex(c, &lv_font_montserrat_20, COLOR_TEXT, text, tr);
     lv_obj_set_flex_grow(t, 1);
     lv_label_set_long_mode(t, LV_LABEL_LONG_MODE_DOTS);
     if (value_out) {
@@ -295,6 +313,12 @@ static lv_obj_t *row(lv_obj_t *list, const char *icon, const char *text, lv_obj_
     }
     lv_obj_add_event_cb(c, cb, LV_EVENT_CLICKED, user);
     return c;
+}
+
+static lv_obj_t *row(lv_obj_t *list, const char *icon, const char *text, lv_obj_t **value_out,
+                     lv_event_cb_t cb, void *user)
+{
+    return row_ex(list, icon, text, true, value_out, cb, user);
 }
 
 static lv_obj_t *switch_row(lv_obj_t *list, const char *text, bool on, lv_event_cb_t cb)
@@ -607,14 +631,15 @@ static void build_text_page(lv_obj_t *tile)
     lv_obj_add_event_cb(s_text_kp, on_text_ready, LV_EVENT_READY, NULL);
 }
 
-/* The hint shows in the empty field, so keep it short. */
+/* The hint shows in the empty field, so keep it short. The title shows as given:
+ * a network's name, or the UI's own words through muse_tr. */
 static void open_text(const char *title, const char *initial, bool password, int max_len, const char *hint,
                       text_done_cb_t done, lv_obj_t *back)
 {
     if (!s_text) {
         build_text_page(s_tile);
     }
-    set_text(s_text_title, title);
+    set_name(s_text_title, title);   /* a network's name, or the UI's already translated */
     lv_textarea_set_max_length(s_text_ta, max_len);
     lv_textarea_set_password_mode(s_text_ta, password);
     lv_textarea_set_text(s_text_ta, initial ? initial : "");
@@ -682,7 +707,7 @@ static void on_other_ssid(const char *ssid)
 static void on_wifi_other(lv_event_t *e)
 {
     (void)e;
-    open_text("Other network", "", false, MUSE_SSID_MAX, "Network name", on_other_ssid, s_wifi);
+    open_text(muse_tr("Other network"), "", false, MUSE_SSID_MAX, "Network name", on_other_ssid, s_wifi);
 }
 
 /* Two taps within a few seconds forget a saved network. */
@@ -728,7 +753,7 @@ static void rebuild_saved_list(void)
         note(s_wifi_saved, "Saved networks");
     }
     for (int i = 0; i < n; i++) {
-        row(s_wifi_saved, LV_SYMBOL_WIFI, saved[i].ssid, &s_saved_vals[i], on_wifi_saved, (void *)(intptr_t)i);
+        row_ex(s_wifi_saved, LV_SYMBOL_WIFI, saved[i].ssid, false, &s_saved_vals[i], on_wifi_saved, (void *)(intptr_t)i);
     }
 }
 
@@ -767,7 +792,7 @@ static bool rebuild_scan_list(void)
     lv_obj_clean(s_wifi_list);
     for (int i = 0; i < n; i++) {
         lv_obj_t *v;
-        row(s_wifi_list, NULL, s_aps[i].ssid, &v, on_wifi_ap, (void *)(intptr_t)i);
+        row_ex(s_wifi_list, NULL, s_aps[i].ssid, false, &v, on_wifi_ap, (void *)(intptr_t)i);
         bool saved = is_saved(s_aps[i].ssid);
         saved_seen |= saved;
         char buf[40];
@@ -869,7 +894,7 @@ static void on_hatch_host(lv_event_t *e)
     (void)e;
     char host[MUSE_HOST_MAX + 1];
     muse_settings_hatch_host(host);
-    open_text("Muse server", host, false, MUSE_HOST_MAX, "Empty for the default", on_hatch_host_done, s_hatch);
+    open_text(muse_tr("Muse server"), host, false, MUSE_HOST_MAX, "Empty for the default", on_hatch_host_done, s_hatch);
 }
 
 static void on_hatch_vm(lv_event_t *e)
@@ -877,13 +902,13 @@ static void on_hatch_vm(lv_event_t *e)
     (void)e;
     char vm[MUSE_VM_MAX + 1];
     muse_settings_hatch_vm(vm);
-    open_text("VM ID", vm, false, MUSE_VM_MAX, "Optional", on_hatch_vm_done, s_hatch);
+    open_text(muse_tr("VM ID"), vm, false, MUSE_VM_MAX, "Optional", on_hatch_vm_done, s_hatch);
 }
 
 static void on_hatch_token(lv_event_t *e)
 {
     (void)e;
-    open_text("Device token", "", true, MUSE_TOKEN_MAX, "Empty keeps the current one", on_hatch_token_done, s_hatch);
+    open_text(muse_tr("Device token"), "", true, MUSE_TOKEN_MAX, "Empty keeps the current one", on_hatch_token_done, s_hatch);
 }
 
 static void on_hatch_test(lv_event_t *e)
@@ -945,8 +970,12 @@ static void tick_hatch(void)
     char host[MUSE_HOST_MAX + 1], vm[MUSE_VM_MAX + 1];
     muse_settings_hatch_host(host);
     muse_settings_hatch_vm(vm);
-    set_text(s_hatch_host, host);
-    set_text(s_hatch_vm, vm[0] ? vm : "Not set");
+    set_name(s_hatch_host, host);
+    if (vm[0]) {
+        set_name(s_hatch_vm, vm);
+    } else {
+        set_text(s_hatch_vm, "Not set");
+    }
     size_t n = muse_settings_hatch_token_len();
     snprintf(buf, sizeof(buf), muse_tr(n ? "Set (%u chars)" : "Not set"), (unsigned)n);
     set_text(s_hatch_token, buf);
@@ -1297,7 +1326,11 @@ static void tick_home(void)
     muse_wifi_status_t w;
     muse_wifi_status(&w);
     static const char *const WIFI_VALUES[] = { "Off", "Not set", "Joining", "", "Failed", "Not nearby" };
-    set_text(s_home_wifi, w.state == MUSE_WIFI_CONNECTED ? w.ssid : WIFI_VALUES[w.state]);
+    if (w.state == MUSE_WIFI_CONNECTED) {
+        set_name(s_home_wifi, w.ssid);
+    } else {
+        set_text(s_home_wifi, WIFI_VALUES[w.state]);
+    }
 
     muse_hatch_status_t h;
     muse_hatch_status(&h);

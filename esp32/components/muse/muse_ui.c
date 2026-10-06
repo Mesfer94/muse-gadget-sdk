@@ -667,8 +667,17 @@ static void build_answer(lv_obj_t *face, int ring_in)
         spk_x = -(int)sqrtf((float)(d * d - spk_y * spk_y));
     }
     const lv_font_t *font = muse_font(&lv_font_unscii_16);   /* taller lines with Arabic */
-    /* A page's columns are unscii's cells, as muse_chat_text.c counts them. */
+    /* A page's columns are unscii's cells, as muse_chat_text.c counts them. In
+     * Arabic a reply's Latin is Noto Sans, whose letters vary: a cell is then
+     * as wide as its average one, so a page of English still fits. */
     int cw = lv_font_get_glyph_width(&lv_font_unscii_16, 'M', ' ');
+    if (font != &lv_font_unscii_16) {
+        static const char SAMPLE[] = "the quick brown fox jumps over the lazy dog 0123456789";
+        lv_point_t size;
+        lv_text_get_size(&size, SAMPLE, font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+        int n = (int)sizeof(SAMPLE) - 1, avg = (size.x + n - 1) / n;
+        cw = avg > cw ? avg : cw;
+    }
     int pitch = lv_font_get_line_height(font) + CAPTION_LINE_SPACE;
 
     answer_layout_t *l = &s_answers[ANSWER_HEARD];
@@ -699,11 +708,13 @@ static void build_answer(lv_obj_t *face, int ring_in)
     art_bottom = l->y + l->px / 2 - ART_BLANK_ROWS * MINI_CELL_PX;
     int top = (art_bottom > spk_y + spk_r ? art_bottom : spk_y + spk_r) + 8;
     set_reply_box(l, 16, 2, top, cw, pitch);
+    /* A third of the caption spare for characters wider than a byte; in
+     * Arabic, every letter is two. */
+    int page_budget = muse_i18n_arabic() ? (MUSE_CAPTION_MAX - 16) / 2 : MUSE_CAPTION_MAX * 2 / 3;
     /* The widest page isn't the biggest: a round screen narrows towards the bottom. */
     for (int c = 12; c <= 24 && fits_across(c * cw, top, ring_in); c++) {
         int n = (reply_bottom(c * cw, ring_in) - top + CAPTION_LINE_SPACE) / pitch;
-        /* A third of the caption spare for characters wider than a byte. */
-        while ((c + 1) * n > MUSE_CAPTION_MAX * 2 / 3) {
+        while ((c + 1) * n > page_budget) {
             n--;
         }
         if (c * n > l->cols * l->lines) {
@@ -1234,7 +1245,7 @@ static void update_chrome(float now)
             strlcpy(hint, muse_tr(s_small ? "Enter on phone" : "Enter it on your phone"), sizeof(hint));
         }
         const char *title = muse_tr(confirm ? (s_small ? "Muse app" : "Pair with Muse app") : "Pairing code");
-        if (strcmp(code, lv_label_get_text(s_pair_code)) != 0) {
+        if (!muse_label_shows(s_pair_code, code)) {
             lv_label_set_text(s_pair_code, code);
             muse_label_set(s_pair_title, title);
             muse_label_set(s_pair_hint, hint);
@@ -1399,7 +1410,8 @@ static void update_status(muse_mode_t mode, float now)
     }
     if (fresh) {
         lv_obj_t *lbl = answer >= 0 ? s_reply_lbl : s_caption_lbl;
-        const char *text = muse_tr(caption);
+        /* The UI's own captions translate; a reply is Muse's words as they are. */
+        const char *text = answer >= 0 ? caption : muse_tr(caption);
         muse_label_set(lbl, text);
         if (answer >= 0) {
             /* An Arabic reply over several lines reads from the right. */
