@@ -78,7 +78,7 @@ for size in 12 16 20 28; do
     if [[ $size == 12 || $size == 16 ]]; then
         latin=(--font "$LATIN_TTF" -r 0x20-0x7E)
     fi
-    npx --yes lv_font_conv@1.5.3 --font "$TTF" -r "$RANGE_ARG" "${latin[@]}" \
+    npx --yes lv_font_conv@1.5.3 --font "$TTF" -r "$RANGE_ARG" ${latin[@]+"${latin[@]}"} \
         --size "$size" --bpp 4 --no-compress --no-kerning --format lvgl \
         --lv-include lvgl.h --lv-font-name "$name" -o "$OUT/$name.c"
     # The header records the options; keep the fonts' paths out of it.

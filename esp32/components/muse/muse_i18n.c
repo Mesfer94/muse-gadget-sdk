@@ -22,8 +22,8 @@
 #include <string.h>
 
 #include "muse_state.h"
-#include "src/misc/lv_bidi_private.h"   /* lv_bidi_detect_base_dir */
 #include "src/misc/lv_text_ap.h"
+#include "src/misc/lv_text_private.h"   /* lv_text_encoded_next */
 
 #if !LV_USE_BIDI || !LV_USE_ARABIC_PERSIAN_CHARS
 #error "Arabic needs LV_USE_BIDI and LV_USE_ARABIC_PERSIAN_CHARS"
@@ -405,24 +405,40 @@ const lv_font_t *muse_font(const lv_font_t *font)
 #define LRM "\xE2\x80\x8E"   /* U+200E LEFT-TO-RIGHT MARK */
 #define MARKED_MAX 768
 
-/* Whether `text` has a letter LVGL runs right to left and joins: Arabic,
- * U+0600-06FF, or its presentation forms (not Hebrew's, nor the BOM). */
+static bool is_arabic(uint32_t cp)
+{
+    /* As LVGL's bidi counts it: Arabic and its presentation forms (not
+     * Hebrew's, nor the BOM). */
+    return (cp >= 0x0600 && cp <= 0x06FF) || (cp >= 0xFB50 && cp <= 0xFDFF) || (cp >= 0xFE70 && cp <= 0xFEFE);
+}
+
+/* Whether `text` has a letter LVGL runs right to left and joins. */
 static bool has_arabic(const char *text)
 {
-    for (const unsigned char *p = (const unsigned char *)text; *p;) {
-        uint32_t cp = *p;
-        int n = cp >= 0xF0 ? 4 : cp >= 0xE0 ? 3 : cp >= 0xC0 ? 2 : 1;
-        cp &= n == 1 ? 0x7F : 0x3F >> (n - 1);
-        for (int i = 1; i < n; i++) {
-            if ((p[i] & 0xC0) != 0x80) {
-                n = i;   /* broken: skip what's there */
-                break;
-            }
-            cp = cp << 6 | (p[i] & 0x3F);
-        }
-        p += n;
-        if ((cp >= 0x0600 && cp <= 0x06FF) || (cp >= 0xFB50 && cp <= 0xFDFF) || (cp >= 0xFE70 && cp <= 0xFEFE)) {
+    for (uint32_t i = 0; text[i];) {
+        if (is_arabic(lv_text_encoded_next(text, &i))) {
             return true;
+        }
+    }
+    return false;
+}
+
+/*
+ * Whether `text` reads right to left: its first letter is Arabic. Unlike
+ * lv_bidi_detect_base_dir, this passes over LVGL's symbols (private-use code
+ * points, which LVGL counts as left to right) and the marks mark_numbers
+ * puts in, so "<refresh icon>  البحث" and a note starting with a number
+ * still read from the right.
+ */
+static bool starts_rtl(const char *text)
+{
+    for (uint32_t i = 0; text[i];) {
+        uint32_t cp = lv_text_encoded_next(text, &i);
+        if (is_arabic(cp)) {
+            return true;
+        }
+        if ((cp >= 'A' && cp <= 'Z') || (cp >= 'a' && cp <= 'z') || (cp >= 0xC0 && cp <= 0x24F)) {
+            return false;
         }
     }
     return false;
@@ -467,7 +483,7 @@ void muse_label_set(lv_obj_t *l, const char *text)
     if (s_arabic) {
         /* Arabic runs right to left even when a number comes first; anything
          * else goes by its first letter. */
-        bool rtl = has_arabic(text) && lv_bidi_detect_base_dir(text) == LV_BASE_DIR_RTL;
+        bool rtl = starts_rtl(text);
         lv_obj_set_style_base_dir(l, rtl ? LV_BASE_DIR_RTL : LV_BASE_DIR_AUTO, 0);
         text = mark_numbers(text);
     }
@@ -502,7 +518,7 @@ bool muse_label_shows(lv_obj_t *l, const char *text)
 
 lv_text_align_t muse_text_align(lv_obj_t *l, const char *text, int width, lv_text_align_t en_align)
 {
-    if (!s_arabic || !text || lv_bidi_detect_base_dir(text) != LV_BASE_DIR_RTL) {
+    if (!s_arabic || !text || !starts_rtl(text)) {
         return en_align;
     }
     if (width <= 0) {

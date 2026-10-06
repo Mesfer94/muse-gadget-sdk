@@ -250,11 +250,12 @@ static bool show_screen(const char *value)
     return true;
 }
 
-/* Taps what holds the label reading `text` (or its translation). */
+/* Taps the button holding the label reading `text` (or its translation).
+ * A label that's on no button (a note, a title) is an invalid tap. */
 static bool tap(const char *text)
 {
     lv_obj_t *obj = find(lv_screen_active(), is_label_with, text);
-    while (obj && !lv_obj_has_flag(obj, LV_OBJ_FLAG_CLICKABLE)) {
+    while (obj && !lv_obj_check_type(obj, &lv_button_class)) {
         obj = lv_obj_get_parent(obj);
     }
     if (!obj) {

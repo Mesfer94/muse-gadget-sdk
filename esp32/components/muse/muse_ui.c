@@ -1050,6 +1050,7 @@ static void build_overlays(void)
     lv_obj_set_style_radius(s_camera_hint, 18, 0);
     lv_obj_add_flag(s_camera_hint, LV_OBJ_FLAG_HIDDEN);
     lv_obj_t *hint_text = lv_label_create(s_camera_hint);
+    lv_obj_set_style_text_font(hint_text, muse_font(LV_FONT_DEFAULT), 0);   /* Arabic too */
     muse_label_set(hint_text, muse_tr("TAP TO TAKE PHOTO"));
     lv_obj_center(hint_text);
     lv_obj_add_event_cb(s_camera_hint, on_camera_hint_clicked, LV_EVENT_CLICKED, NULL);
@@ -1246,6 +1247,8 @@ static void update_chrome(float now)
         }
         const char *title = muse_tr(confirm ? (s_small ? "Muse app" : "Pair with Muse app") : "Pairing code");
         if (!muse_label_shows(s_pair_code, code)) {
+            /* Spaced-out digits; an Arabic word's letters join, so they stay together. */
+            lv_obj_set_style_text_letter_space(s_pair_code, confirm && muse_i18n_arabic() ? 0 : (s_small ? 2 : 6), 0);
             lv_label_set_text(s_pair_code, code);
             muse_label_set(s_pair_title, title);
             muse_label_set(s_pair_hint, hint);
