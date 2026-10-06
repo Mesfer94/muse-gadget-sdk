@@ -146,6 +146,19 @@ endif()
 
 set(MUSE_COMPONENT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../components/muse")
 
+# The avatar to draw: "default", or "wolf" (avatar/wolf, as on the StopWatch).
+set(MUSE_SIM_AVATAR "default" CACHE STRING "Avatar the simulator draws: default or wolf")
+set_property(CACHE MUSE_SIM_AVATAR PROPERTY STRINGS default wolf)
+if(MUSE_SIM_AVATAR STREQUAL "wolf")
+    set(MUSE_SIM_AVATAR_SOURCES
+        "${MUSE_COMPONENT_DIR}/../../avatar/wolf/muse_pixel_wolf.c"
+        "${MUSE_COMPONENT_DIR}/../../avatar/wolf/wolf_sprites.c")
+elseif(MUSE_SIM_AVATAR STREQUAL "default")
+    set(MUSE_SIM_AVATAR_SOURCES "${MUSE_COMPONENT_DIR}/../../avatar/muse_pixel.c")
+else()
+    message(FATAL_ERROR "MUSE_SIM_AVATAR must be default or wolf, not ${MUSE_SIM_AVATAR}")
+endif()
+
 add_executable(muse_simulator
     src/main.c
     src/sim_board.c
@@ -163,7 +176,7 @@ add_executable(muse_simulator
     "${MUSE_COMPONENT_DIR}/fonts/muse_font_ar_16.c"
     "${MUSE_COMPONENT_DIR}/fonts/muse_font_ar_20.c"
     "${MUSE_COMPONENT_DIR}/fonts/muse_font_ar_28.c"
-    "${MUSE_COMPONENT_DIR}/../../avatar/muse_pixel.c"
+    ${MUSE_SIM_AVATAR_SOURCES}
 )
 
 target_include_directories(muse_simulator PRIVATE

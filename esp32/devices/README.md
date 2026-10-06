@@ -163,8 +163,9 @@ and M5's [factory firmware](https://github.com/m5stack/M5StopWatch-UserDemo)
 are the references. It enumerates as the chip's own USB serial port, so
 flashing needs nothing special: `tools/muse/board.sh flash stopwatch`. Its
 screen is in Arabic, right to left (`CONFIG_MUSE_LANG_ARABIC` in its overlay);
-set it to `n` for English. `simulator/` previews it with `--board stopwatch
---lang ar`.
+set it to `n` for English. Its avatar is the white wolf in `avatar/wolf`
+(`CONFIG_MUSE_AVATAR_WOLF`), whose head is the logo while it boots.
+`simulator/` previews it with `--board stopwatch --lang ar`.
 
 The M5Stack CoreS3 runs on Espressif's
 [BSP](https://github.com/espressif/esp-bsp/tree/master/bsp/m5stack_core_s3),

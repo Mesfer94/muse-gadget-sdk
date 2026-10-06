@@ -350,7 +350,10 @@ run `python3 tools/muse/chat.py "question"`.
 
 The default avatar is in `avatar/`: its renderer (`muse_pixel.c`) and
 its animation (`jollybot.gif`, and `happy_anim.c/.h` made from it by
-`tools/gen_happy_anim.py`).
+`tools/gen_happy_anim.py`). The StopWatch draws the wolf in `avatar/wolf`
+instead (`CONFIG_MUSE_AVATAR_WOLF`); its frames are made from the GIFs in
+`avatar/wolf/source/` by `tools/gen_wolf_avatar.py`, never by hand, and the
+Apache License doesn't cover its art.
 
 Third-party code keeps its upstream license and header: `minimp3.h` (CC0),
 `main/pixel_font.c` (BSD-2-Clause, Adafruit) and the Noto Sans Arabic fonts in

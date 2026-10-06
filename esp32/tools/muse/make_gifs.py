@@ -15,7 +15,7 @@
 
 """Render every Muse animation to an animated GIF using the firmware's renderer.
 
-    python3 tools/muse/make_gifs.py [--default | --src FILE] [out_dir]     (default: ./gifs)
+    python3 tools/muse/make_gifs.py [--default | --wolf | --src FILE] [out_dir]     (default: ./gifs)
 
 Draws your own avatar (components/muse/avatar/muse_pixel.c, see AVATAR_RECIPE.md)
 when there is one, else the default avatar. Needs a C compiler and Pillow.
@@ -48,8 +48,12 @@ def render(src, out):
     paths = []
     with tempfile.TemporaryDirectory() as tmp:
         exe = os.path.join(tmp, "muse_anim")
+        # A renderer can draw frames kept beside it (avatar/wolf's *_sprites.c).
+        src_dir = os.path.dirname(os.path.abspath(src))
+        sprites = sorted(os.path.join(src_dir, f) for f in os.listdir(src_dir) if f.endswith("_sprites.c"))
         subprocess.run(
-            ["cc", "-O2", "-Wall", "-I", "components/muse", "tools/muse/anim.c", src, "-lm", "-o", exe],
+            ["cc", "-O2", "-Wall", "-I", "components/muse", "-I", src_dir, "tools/muse/anim.c", src, *sprites,
+             "-lm", "-o", exe],
             cwd=ROOT, check=True, capture_output=True, text=True,
         )
         frames_dir = os.path.join(tmp, "frames")
@@ -77,7 +81,10 @@ def main():
     which = ap.add_mutually_exclusive_group()
     which.add_argument("--default", action="store_true", help="draw the default avatar even if you have your own")
     which.add_argument("--src", help="draw this muse_pixel.c")
+    which.add_argument("--wolf", action="store_true", help="draw the wolf (avatar/wolf/muse_pixel_wolf.c)")
     args = ap.parse_args()
+    if args.wolf:
+        args.src = os.path.join(ROOT, "avatar", "wolf", "muse_pixel_wolf.c")
     src = os.path.abspath(args.src) if args.src else renderer_source(args.default)
     print(f"renderer: {os.path.relpath(src, ROOT)}")
     try:

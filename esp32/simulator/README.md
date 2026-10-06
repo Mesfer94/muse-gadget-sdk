@@ -159,6 +159,15 @@ English, as before.
   --scenario esp32/simulator/tests/arabic/long.txt
 ```
 
+To see the StopWatch's wolf avatar (`avatar/wolf`) in place of the default
+one, configure a build with `-DMUSE_SIM_AVATAR=wolf`:
+
+```sh
+cmake -S esp32/simulator -B esp32/simulator/build-wolf -G Ninja -DMUSE_SIM_AVATAR=wolf
+cmake --build esp32/simulator/build-wolf --parallel
+./esp32/simulator/build-wolf/muse_simulator --board stopwatch --lang ar
+```
+
 The scenarios in `tests/arabic/` cover short, long and mixed Arabic, English
 and number replies, the face's captions and the settings pages; the automated
 tests render each one with both options.

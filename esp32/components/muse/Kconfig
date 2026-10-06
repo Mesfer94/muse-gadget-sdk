@@ -129,6 +129,17 @@ menu "Muse"
             Sans Arabic in four sizes (components/muse/fonts, made by
             tools/gen_arabic_font.sh).
 
+    config MUSE_AVATAR_WOLF
+        bool "The wolf avatar"
+        depends on MUSE_ENABLED
+        default n
+        help
+            Draw the white wolf (avatar/wolf) in place of the default
+            avatar: its head is the logo while Muse boots, then the wolf
+            itself, animated for each state. Your own avatar in
+            components/muse/avatar/muse_pixel.c still comes first. Its
+            frames take about 25 KB of flash.
+
     config MUSE_HATCH
         bool "Muse's own voice session"
         depends on MUSE_ENABLED
